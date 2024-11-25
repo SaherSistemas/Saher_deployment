@@ -5,7 +5,7 @@ const Agentes = require('../models/AGENTES/Agentes.js');
 const Administradores = require('../models/ADMINISTRADORES/Administradores.js')
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
-
+require('dotenv').config({path:'variables.env'});
 
 exports.agregarUsuario = async (req, res) => {
 
@@ -95,7 +95,7 @@ exports.autenticarUsuario = async (req, res, next) => {
             {
                 usuarioweb: usuario.usuarioweb,
             },
-            'LLAVESECRETA',
+            process.env.KEY,
             {
                 expiresIn: '1h',
             }
