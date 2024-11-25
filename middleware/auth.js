@@ -1,5 +1,5 @@
 const jwt =require('jsonwebtoken')
-
+require('dotenv').config({path:'variables.env'});
 module.exports = (req,res,next) => {
     //autorizacion por el header
 
@@ -15,7 +15,7 @@ module.exports = (req,res,next) => {
     const token = authHeader.split(' ')[1];
     let revisarToken;
     try {
-        revisarToken = jwt.verify(token,'LLAVESECRETA');
+        revisarToken = jwt.verify(token,process.env.KEY);
 
     } catch (error) {
         error.statusCode = 500
