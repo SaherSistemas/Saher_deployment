@@ -1,0 +1,35 @@
+CREATE TABLE webUsuarios (
+    usuarioweb VARCHAR(50) PRIMARY KEY,
+    contraweb VARCHAR(150) NOT NULL,
+    clvcli character(15),
+    clvage SMALLINT,
+	clvadmin SMALLINT,
+	FOREIGN KEY (clvcli) REFERENCES clientes(clicdclic),
+	FOREIGN KEY (clvage) REFERENCES agentes(agecdagen),
+    FOREIGN KEY (clvadmin) REFEENCES webAdministradores(cd_adminweb)
+);
+
+
+CREATE TABLE webAdministradores(
+    cd_adminWeb SMALLINT PRIMARY KEY,
+    nom_adminWeb VARCHAR(50),
+    activo_adminWeb CHARACTER(1)
+)
+
+CREATE TABLE Webimages (
+  id INT primary key ,
+  image_data BYTEA NOT NULL
+);
+
+INSERT INTO public.webadministradores(
+	cd_adminweb, nom_adminweb, activo_adminweb)
+	VALUES (1, 'Pedro Meza', 'A');
+SELECT * from webadministradores
+
+INSERT
+
+******** SI SE TIENE QUE MODIFICAR LA TABLA YA EXISTENTE
+ALTER TABLE webusuarios
+ADD CONSTRAINT fk_jefes_departamentos
+FOREIGN KEY (clvadmin )
+REFERENCES webAdministradores(cd_adminWeb);
