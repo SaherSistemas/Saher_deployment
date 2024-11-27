@@ -17,7 +17,7 @@ const auth = require('../middleware/auth.js');
 module.exports = function () {
 /*ARTICULOS*/
     /*MOSTRAR TODOS LOS ARTICULOS  */
-    router.get('/articulos', auth,
+    router.get('/articulos',
         articuloController.mostrarArticulos);
     /*DESACTIVAR ARTICULOS  */
     router.patch('/articulos/desactivar', auth,
