@@ -5,7 +5,7 @@ const Agentes = require('../models/AGENTES/Agentes.js');
 const Administradores = require('../models/ADMINISTRADORES/Administradores.js')
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
-require('dotenv').config({path:'variables.env'});
+require('dotenv').config({ path: 'variables.env' });
 
 exports.agregarUsuario = async (req, res) => {
 
@@ -195,7 +195,7 @@ exports.activarYDesactivarUsuario = async (req, res, next) => {
                 usuarioweb: req.body.usuarioweb,
             },
         });
-     
+
         /*const nuevoVa = null
     /*SI ES A CAMBIAR a D SI ES D cambiar a A */
         if (activoONo.statusadmin == 'A') {
@@ -326,13 +326,19 @@ exports.perfil = async (req, res, next) => {
 
         let infoUsuario;
 
-    
+
 
 
         if (tipoUsuario === 'A') {
             infoUsuario = await Administradores.findOne({
                 where: {
                     cd_adminweb: claveUsuario
+                }
+            });
+        } else if (tipoUsuario === 'B') {
+            infoUsuario = await Agentes.findOne({
+                where: {
+                    agecdagen : claveUsuario
                 }
             });
         } else if (tipoUsuario === 'C') {

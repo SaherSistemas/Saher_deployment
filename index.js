@@ -3,7 +3,6 @@ const routes = require('./routes/index.js');
 const bodyParser = require('body-parser');
 const sequelize = require('./database');
 require('dotenv').config({path:'variables.env'});
-//importar cors cliente sse conecte a otro servidor 
 const cors = require('cors');
 
 
@@ -28,7 +27,7 @@ const corsOption ={
   }
 }
 //habilitar cors
-app.use(cors(corsOption));
+app.use(cors());
 //Rutas de la app
 app.use('/', routes());
 

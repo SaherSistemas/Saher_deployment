@@ -123,11 +123,16 @@ module.exports = function () {
 
     router.get('/detallesProducto/:artcdartn', clienteController.obtenerDetalles);
 
+    router.get('/ListaParaPedido', clienteController.obtenerDatosPorGrupoParaPedido);
+    
+    router.post('/hacerPedido', clienteController.hacerPedido)
     //FACTURAS 
     router.get('/facturasTotal/:claveUsuario', clienteController.totalFacturas);
 
     router.get('/facturas/obtenerRFC/:clicdclic', clienteController.obtenerRFC);
 
+    router.get('/pedidosCliente', clienteController.pedido);
+    
     // Ruta para manejar la subida de imágenes
     router.post('/subirImagen', sliderController.subirImagen);
 
@@ -138,5 +143,16 @@ module.exports = function () {
     router.post('/contacto', landingPageController.guardarContacto);
     // Ruta para obtener todos los contactos
     router.get('/contactos',auth, landingPageController.obtenerContactos);
+    
+  
+
+    /*AGENTE*/
+        //PEDIDO
+        router.get('/pedidos/diaAgente', agenteController.pedidosDiaAgente);
+        //DETALLE PEDIDO
+        router.get('/pedidos/detalle/:pedidoId', agenteController.detallePedido);
+        //MIS CLIENTES
+        router.get('/misclientes/:idAgente', agenteController.misClientes)
+        
     return router;
 }

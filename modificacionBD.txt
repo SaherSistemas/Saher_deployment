@@ -16,17 +16,12 @@ CREATE TABLE webAdministradores(
     activo_adminWeb CHARACTER(1)
 )
 
-CREATE TABLE Webimages (
-  id INT primary key ,
-  image_data BYTEA NOT NULL
-);
 
 INSERT INTO public.webadministradores(
 	cd_adminweb, nom_adminweb, activo_adminweb)
 	VALUES (1, 'Pedro Meza', 'A');
 SELECT * from webadministradores
 
-INSERT
 
 ******** SI SE TIENE QUE MODIFICAR LA TABLA YA EXISTENTE
 ALTER TABLE webusuarios
