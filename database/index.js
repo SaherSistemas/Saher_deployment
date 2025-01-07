@@ -1,19 +1,6 @@
 const {Sequelize} = require('sequelize');
 require('dotenv').config({path:'variables.env'});
-/*
-const sequelize = new Sequelize('PedroPruebas', 'pruebas', '1234',{
-    host : 'localhost',
-    dialect : 'postgres',
-    logging: false // Desactiva el logging
-})*/
 
-//servidor
-/*
-const sequelize = new Sequelize('PedroPruebas', 'postgres', 'Ir711511#',{
-    host : 'farmaciasyg.hopto.org',
-    dialect : 'postgres',
-    logging: false // Desactiva el logging
-})*/
 
 const sequelize = new Sequelize(
     process.env.DB_NAME, // Nombre de la base de datos
