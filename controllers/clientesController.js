@@ -403,9 +403,7 @@ exports.obtenerDatosPorGrupoParaPedido = async (req, res, next) => {
       where: {
         empcdempn: 20, almcdalmn: 1,
       },
-      order: [
-        [literal('almexistn DESC')]
-      ],
+
       limit: 20 // Limita los resultados a los primeros 20
     });
 
@@ -462,6 +460,8 @@ exports.obtenerDatosPorGrupoParaPedido = async (req, res, next) => {
         precioReal: precioReal
       };
     });
+    
+    console.log(articulosCombinados)
 
     res.status(200).json(articulosCombinados);
   } catch (error) {
@@ -472,6 +472,35 @@ exports.obtenerDatosPorGrupoParaPedido = async (req, res, next) => {
 
 
 exports.hacerPedido = async (req, res, next) => {
+  const { empcdempn, pdifecped, pdihorrec, clicdclic, carrito } = req.body;
+
+
+  const facturasVencidas = await CuentasxCobrar.findAll({
+    attributes: [
+      'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
+      'cxcfedocd', 'cxcfeulpd', 'cxcporcon', 'cxcfevend', 'cxcfecand',
+      'cxcstatuc', 'agecdagen', 'cxcivapon', 'cxcpagvic', 'cxcfoldic', 'cxctocivn',
+      [Sequelize.fn('SUM', Sequelize.literal('cxcsubton + cxcimivan')), 'total_suma']
+    ],
+    where: {
+      clicdclic: clicdclic,
+      empcdempn: 20,
+      cxcstatuc: 'C',
+      cxcfevend: { [Op.lte]: new Date(new Date() - 10 * 24 * 60 * 60 * 1000) },
+    },
+    group: [
+      'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
+      'cxcfedocd', 'cxcfeulpd', 'cxcporcon', 'cxcfevend', 'cxcfecand',
+      'cxcstatuc', 'agecdagen', 'cxcivapon', 'cxcpagvic', 'cxcfoldic', 'cxctocivn'
+    ]
+  });
+
+  if (facturasVencidas.length > 0) {
+    return res.status(403).json({
+      mensaje: 'No puedes realizar un pedido debido a facturas vencidas con más de 10 días.',
+    });
+   
+  }
   const resultado = await numerador.findOne({
     attributes: ['numfolcon'],
     where: {
@@ -488,7 +517,6 @@ exports.hacerPedido = async (req, res, next) => {
     sigRegistro = numEnter + 1;
   }
   console.log(sigRegistro)
-  const { empcdempn, pdifecped, pdihorrec, clicdclic, carrito } = req.body;
 
   const nuevoPedido = {
     empcdempn: empcdempn,
