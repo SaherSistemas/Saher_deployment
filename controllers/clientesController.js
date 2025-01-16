@@ -391,23 +391,19 @@ exports.obtenerDatosPorGrupoParaPedido = async (req, res, next) => {
       }
     };
 
-    // Agregar límite a la consulta de Almacenes1
+    // Obtener datos de Almacenes1
     const articulosAlmacenPru = await Almacenes1.findAll({
-      attributes: ['empcdempn', 'almexistn'],
+      attributes: ['empcdempn', 'almexistn', 'artcdartn'],
       include: [{
         model: articulos,
         as: 'articulo',
         attributes: ['artcdartn', 'artdsartc', 'artdsgenc', 'artemporn'],
         where: whereCondition
       }],
-      where: {
-        empcdempn: 20, almcdalmn: 1,
-      },
-
-      limit: 20 // Limita los resultados a los primeros 20
+      where: { empcdempn: 20, almcdalmn: 1 }
     });
 
-    // Agregar límite a la consulta de Preciogpo
+    // Obtener datos de Preciogpo
     const articulosPrecGrup = await Preciogpo.findAll({
       attributes: ['grpcdgrpn', 'artcdartn', 'grpprecin', 'grppreofn', 'grpfecofd'],
       include: [{
@@ -416,30 +412,30 @@ exports.obtenerDatosPorGrupoParaPedido = async (req, res, next) => {
         attributes: ['artcdartn', 'artdsartc', 'artdsgenc'],
         where: whereCondition
       }],
-      where: { grpcdgrpn: grupo },
-      limit: 20 // Limita los resultados a los primeros 20
+      where: { grpcdgrpn: grupo }
     });
 
-    // Agregar límite a la consulta de Caducidades
+    // Obtener datos de Caducidades
     const caducidadesProximas = await Caducidades.findAll({
       attributes: ['empcdempn', 'artcdartn', 'cadfeccad', 'cadpiezan'],
       where: {
         empcdempn: 20,
         cadfeccad: { [Op.gte]: new Date() },
         cadpiezan: { [Op.gt]: 0 }
-      },
-      limit: 20 // Limita los resultados a los primeros 20
+      }
     });
 
+    // Convertir los resultados a JSON
     const articulosAlmacenData = articulosAlmacenPru.map(item => item.toJSON());
     const articulosPrecioData = articulosPrecGrup.map(item => item.toJSON());
     const caducidadesData = caducidadesProximas.map(item => item.toJSON());
 
+    // Combinar los datos
     const articulosCombinados = articulosAlmacenData.map(almacen => {
-      const precio = articulosPrecioData.find(precio => precio.artcdartn === almacen.articulo.artcdartn);
+      const precio = articulosPrecioData.find(precio => precio.artcdartn === almacen.artcdartn);
 
       const caducidad = caducidadesData
-        .filter(cad => cad.artcdartn === almacen.articulo.artcdartn)
+        .filter(cad => cad.artcdartn === almacen.artcdartn)
         .sort((a, b) => new Date(a.cadfeccad) - new Date(b.cadfeccad))[0];
 
       let precioReal = null;
@@ -460,15 +456,19 @@ exports.obtenerDatosPorGrupoParaPedido = async (req, res, next) => {
         precioReal: precioReal
       };
     });
-    
-    console.log(articulosCombinados)
 
-    res.status(200).json(articulosCombinados);
+    // Ordenar por existencia en orden descendente y limitar a 20
+    const articulosOrdenados = articulosCombinados
+      .sort((a, b) => b.almexistn - a.almexistn)
+      .slice(0, 20);
+
+    res.status(200).json(articulosOrdenados);
   } catch (error) {
     console.error('Error al ejecutar la consulta:', error);
     res.status(500).json({ error: 'Ocurrió un error al obtener los datos' });
   }
 };
+
 
 
 exports.hacerPedido = async (req, res, next) => {
