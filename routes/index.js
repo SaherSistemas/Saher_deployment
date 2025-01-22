@@ -93,6 +93,9 @@ module.exports = function () {
         agenteController.activarYDesactivarAgente);
 
     /* CLIENTES */
+
+    router.get('/iva/:ivacdivan', clienteController.obtenerIVAProduc);
+
     router.get('/clientes',
         auth, clienteController.todosClientes);
 

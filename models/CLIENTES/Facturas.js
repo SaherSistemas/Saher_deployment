@@ -10,6 +10,7 @@ const Factura = sequelize.define('Factura', {
   fclcdfcln: {
     type: DataTypes.NUMERIC(10, 0),
     allowNull: false,
+    primaryKey:true
   },
   clicdclic: {
     type: DataTypes.STRING(15),

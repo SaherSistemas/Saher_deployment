@@ -12,6 +12,7 @@ const Pedido1 = require('../models/PEDIDOS/Pedidos1.js');
 const Remision = require('../models/CLIENTES/Remision.js');
 const nodemailer = require('nodemailer');
 const Factura = require('../models/CLIENTES/Facturas.js');
+const Iva = require('../models/ARTICULOS/Iva.js')
 
 
 exports.todosClientesSinCuenta = async (req, res, next) => {
@@ -89,7 +90,6 @@ exports.obtenerFacturasVencidas = async (req, res, next) => {
     });
     return res.status(200).json(facturas);
   } catch (error) {
-    console.error('Error al obtener las facturas:', error);
     next();
     return res.status(500).json({ error: 'Error al obtener las facturas.' });
   }
@@ -206,7 +206,6 @@ exports.totalFacturas = async (req, res, next) => {
     }
 
   } catch (error) {
-    console.error('Error:', error);
     res.status(500).json({ error: 'Ocurrió un error al obtener las facturas' });
   }
 };
@@ -229,7 +228,6 @@ exports.claveGrp = async (req, res, next) => {
       res.status(404).json({ error: 'Cliente no encontrado' });
     }
   } catch (error) {
-    console.error('Error al obtener el grupo:', error);
     res.status(500).json({ error: 'Ocurrió un error al obtener el grupo' });
   }
 };
@@ -318,7 +316,6 @@ exports.obtenerDatosPorGrupo = async (req, res, next) => {
       items: articulosCombinados
     });
   } catch (error) {
-    console.error('Error al ejecutar la consulta:', error);
     res.status(500).json({ error: 'Ocurrió un error al obtener los datos' });
   }
 };
@@ -349,7 +346,6 @@ exports.obtenerDetalles = async (req, res, next) => {
 
     res.status(200).json(productoAlmacen);
   } catch (error) {
-    console.error('Error al obtener el producto:', error);
 
     res.status(500).json({ error: 'Error al obtener los datos del producto' });
   }
@@ -372,7 +368,6 @@ exports.obtenerRFC = async (req, res, next) => {
       res.status(404).json({ error: 'Cliente no encontrado' });
     }
   } catch (error) {
-    console.error('Error al obtener el grupo:', error);
     res.status(500).json({ error: 'Ocurrió un error al obtener el grupo' });
   }
 };
@@ -397,7 +392,7 @@ exports.obtenerDatosPorGrupoParaPedido = async (req, res, next) => {
       include: [{
         model: articulos,
         as: 'articulo',
-        attributes: ['artcdartn', 'artdsartc', 'artdsgenc', 'artemporn'],
+        attributes: ['artcdartn', 'artdsartc', 'artdsgenc', 'artemporn', 'ivacdivan'],
         where: whereCondition
       }],
       where: { empcdempn: 20, almcdalmn: 1 }
@@ -409,7 +404,7 @@ exports.obtenerDatosPorGrupoParaPedido = async (req, res, next) => {
       include: [{
         model: articulos,
         as: 'articulo',
-        attributes: ['artcdartn', 'artdsartc', 'artdsgenc'],
+        attributes: ['artcdartn', 'artdsartc', 'artdsgenc', 'ivacdivan'],
         where: whereCondition
       }],
       where: { grpcdgrpn: grupo }
@@ -464,7 +459,6 @@ exports.obtenerDatosPorGrupoParaPedido = async (req, res, next) => {
 
     res.status(200).json(articulosOrdenados);
   } catch (error) {
-    console.error('Error al ejecutar la consulta:', error);
     res.status(500).json({ error: 'Ocurrió un error al obtener los datos' });
   }
 };
@@ -497,10 +491,77 @@ exports.hacerPedido = async (req, res, next) => {
 
   if (facturasVencidas.length > 0) {
     return res.status(403).json({
-      mensaje: 'No puedes realizar un pedido debido a facturas vencidas con más de 10 días.',
+      mensaje: 'No puedes realizar un pedido debido a que tienes facturas vencidas con más de 10 días vencidas.',
     });
-   
   }
+ // Verificar saldo del cliente
+ const saldoCliente = await Clientes.findByPk(clicdclic);
+ const saldoDisponible = saldoCliente.clilimcrn - saldoCliente.clisaldon;
+
+ // Calcular total de pedidos pendientes de facturar
+ const pedidosPendientesDeFacturar = await Pedidos.findAll({
+   where: {
+     clicdclic,
+     pdistatuc: { [Op.in]: ['C', 'R', 'P'] },
+     empcdempn: 20
+   },
+   attributes: ['pdicdpdin']
+ });
+
+ let totalPedidosPendientes = 0;
+ if (pedidosPendientesDeFacturar && pedidosPendientesDeFacturar.length > 0) {
+   for (const pedido of pedidosPendientesDeFacturar) {
+     const pdicdpdin = pedido.dataValues.pdicdpdin;
+
+     const articulosPedido = await Pedido1.findAll({
+       where: {
+         pdicdpdin,
+         empcdempn: 20
+       }
+     });
+
+     for (const articulo of articulosPedido) {
+       const precioArticulo = articulo.dataValues.pdiprevtn;
+       const cantidad = articulo.dataValues.pdicntpdn;
+
+       const articuloInfo = await articulos.findOne({
+         where: { artcdartn: articulo.dataValues.artcdartn },
+         attributes: ['ivacdivan']
+       });
+
+       const ivaP = await Iva.findByPk(articuloInfo.dataValues.ivacdivan);
+       const ivaPorciento = ivaP.ivaporcen;
+
+       totalPedidosPendientes += (precioArticulo * cantidad) * (1 + ivaPorciento / 100);
+     }
+   }
+ }
+
+ // Calcular total del nuevo pedido
+ let totalNuevoPedido = 0;
+ for (const item of carrito) {
+   const { cantidad, precioReal, articulo } = item;
+   const { artcdartn } = articulo;
+
+   const articuloInfo = await articulos.findOne({
+     where: { artcdartn },
+     attributes: ['ivacdivan']
+   });
+
+   const ivaP = await Iva.findByPk(articuloInfo.dataValues.ivacdivan);
+   const ivaPorciento = ivaP.ivaporcen;
+
+   totalNuevoPedido += (precioReal * cantidad) * (1 + ivaPorciento / 100);
+ }
+
+ const totalPedidoCliente = totalPedidosPendientes + totalNuevoPedido;
+ if (totalPedidoCliente > saldoDisponible) {
+   return res.status(403).json({
+     mensaje: 'El total del pedido nuevo y los pendientes excede el saldo disponible.',
+   });
+ }
+
+
   const resultado = await numerador.findOne({
     attributes: ['numfolcon'],
     where: {
@@ -516,8 +577,6 @@ exports.hacerPedido = async (req, res, next) => {
     const numEnter = parseInt(numfolcon, 10);
     sigRegistro = numEnter + 1;
   }
-  console.log(sigRegistro)
-
   const nuevoPedido = {
     empcdempn: empcdempn,
     pdicdpdin: sigRegistro,
@@ -641,7 +700,6 @@ exports.hacerPedido = async (req, res, next) => {
 
       await transporter.sendMail(correo);
 
-      console.log('Correo enviado con éxito.');
     } else {
       console.log('No se encontró un email asociado para esta clave.');
     }
@@ -660,8 +718,8 @@ exports.hacerPedido = async (req, res, next) => {
 
 
   res.json({ mensaje: 'Pedido realizado y correo enviado.' });
-
 };
+
 exports.pedido = async (req, res, next) => {
   try {
     const cliente = req.query.clicdclic;
@@ -728,8 +786,36 @@ exports.pedido = async (req, res, next) => {
 
     res.json({ pedidos: pedidosConFacturas });
   } catch (error) {
-    console.error("Error al obtener pedidos:", error);
     res.status(500).json({ mensaje: "Error al obtener los pedidos." });
   }
 };
 
+
+exports.obtenerIVAProduc = async (req, res, next) => {
+  try {
+    const { ivacdivan } = req.params;
+
+    // Busca el IVA utilizando el primary key (ivacdivan)
+    const iva = await Iva.findByPk(ivacdivan);
+
+    // Verifica si se encontró el IVA
+    if (!iva) {
+      return res.status(404).json({
+        mensaje: `No se encontró información para el código de IVA: ${ivacdivan}`,
+      });
+    }
+
+    // Si se encuentra, responde con la información del IVA
+    return res.json({
+      ivacdivan: iva.ivacdivan,
+      ivadescrc: iva.ivadescrc,
+      ivaporcen: iva.ivaporcen,
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      mensaje: 'Hubo un error interno al procesar la solicitud.',
+      error: error.message,
+    });
+  }
+};

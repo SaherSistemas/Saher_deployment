@@ -5,6 +5,7 @@ const Agentes = require('../models/AGENTES/Agentes.js');
 const Administradores = require('../models/ADMINISTRADORES/Administradores.js')
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
+const Factura = require('../models/CLIENTES/Facturas.js');
 require('dotenv').config({ path: 'variables.env' });
 
 exports.agregarUsuario = async (req, res) => {
@@ -47,6 +48,7 @@ exports.agregarUsuario = async (req, res) => {
         res.status(500).json({ mensaje: 'Hubo un error al crear el usuario' });
     }
 };
+
 exports.autenticarUsuario = async (req, res, next) => {
     const { usuarioweb, contraweb } = req.body;
 
@@ -73,6 +75,30 @@ exports.autenticarUsuario = async (req, res, next) => {
         // Verifica si la contraseña es incorrecta
         if (!bcrypt.compareSync(contraweb, usuario.contraweb)) {
             return res.status(401).json({ mensaje: 'Contraseña incorrecta' });
+        }
+
+        if (usuario.clvcli) {
+            const clienteID = usuario.clvcli.trim();
+            const tresMesesAtras = new Date();
+            tresMesesAtras.setMonth(tresMesesAtras.getMonth() - 100); // Restar 3 meses
+
+            const facturasRecientes = await Factura.findOne({
+                where: {
+                    clicdclic: clienteID,
+                    fclfecfad: { [Op.gte]: tresMesesAtras }
+                },
+            })
+
+            if (!facturasRecientes) {
+                await Usuarios.update(
+                    { statusadmin: 'D' },
+                    {where:{usuarioweb}}
+                );
+                return res.status(403).json({
+                    mensaje: 'Usuario desactivado por inactividad de más de 3 meses.'
+                });
+            }
+
         }
 
         // Determinar el tipo de usuario
@@ -251,15 +277,14 @@ exports.cambiarContrasena = async (req, res, next) => {
         res.status(500).json({ mensaje: 'Hubo un error al cambiar la contraseña' });
     }
 };
-
-exports.obtenerUsuario = async (req, res, next) => {
+exports.obtenerUsuario = async (req, res) => {
     try {
-        const { claveUsuario } = req.body;
+        const { claveUsuario } = req.query; // Asegúrate de que accedes a req.query para parámetros GET
 
-        // Busca el usuario que tenga alguna de las claves proporcionadas
+        // Lógica para obtener el usuario basado en claveUsuario
         const usuarioWeb = await Usuarios.findOne({
             where: {
-                [sequelize.Op.or]: [
+                [Op.or]: [
                     { clvcli: claveUsuario },
                     { clvage: claveUsuario },
                     { clvadmin: claveUsuario }
@@ -276,13 +301,14 @@ exports.obtenerUsuario = async (req, res, next) => {
             return res.status(404).json({ mensaje: 'Usuario no encontrado' });
         }
 
-        res.json(usuarioWeb);
+        res.json(usuarioWeb); // Devuelve el usuario encontrado
 
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ mensaje: 'Error al obtener el usuario' });
+        console.error('Error al obtener el usuario:', error);
+        res.status(500).json({ mensaje: 'Error en el servidor al obtener el usuario' });
     }
 };
+
 
 exports.cambiarContrasenaSinVerificarAntigua = async (req, res, next) => {
     try {
@@ -338,7 +364,7 @@ exports.perfil = async (req, res, next) => {
         } else if (tipoUsuario === 'B') {
             infoUsuario = await Agentes.findOne({
                 where: {
-                    agecdagen : claveUsuario
+                    agecdagen: claveUsuario
                 }
             });
         } else if (tipoUsuario === 'C') {
