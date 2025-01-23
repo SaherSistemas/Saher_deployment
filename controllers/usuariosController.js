@@ -6,6 +6,7 @@ const Administradores = require('../models/ADMINISTRADORES/Administradores.js')
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const Factura = require('../models/CLIENTES/Facturas.js');
+const Remision = require('../models/CLIENTES/Remision.js');
 require('dotenv').config({ path: 'variables.env' });
 
 exports.agregarUsuario = async (req, res) => {
@@ -80,43 +81,53 @@ exports.autenticarUsuario = async (req, res, next) => {
         if (usuario.clvcli) {
             const clienteID = usuario.clvcli.trim();
             const tresMesesAtras = new Date();
-            tresMesesAtras.setMonth(tresMesesAtras.getMonth() - 100); // Restar 3 meses
+            tresMesesAtras.setMonth(tresMesesAtras.getMonth() - 3); // Restar 3 meses
 
-            const facturasRecientes = await Factura.findOne({
-                where: {
-                    clicdclic: clienteID,
-                    fclfecfad: { [Op.gte]: tresMesesAtras }
-                },
-            })
-
-            if (!facturasRecientes) {
+            const [facturasRecientes, remisiones] = await Promise.all([
+                Factura.findOne({
+                    where: {
+                        clicdclic: clienteID,
+                        fclfecfad: { [Op.gte]: tresMesesAtras }
+                    },
+                }),
+                Remision.findOne({
+                    where: {
+                        clicdclic: clienteID,
+                        empcdempn: 20,
+                        remstatuc: 'A',
+                        remfecred: { [Op.gte]: tresMesesAtras }
+                    }
+                })
+            ]);
+            console.log(facturasRecientes);
+            console.log("PRUEBA");
+            console.log(remisiones);
+            console.log(tresMesesAtras)
+            if (!facturasRecientes && (!remisiones || remisiones.length === 0)) {
                 await Usuarios.update(
                     { statusadmin: 'D' },
-                    {where:{usuarioweb}}
+                    { where: { usuarioweb } }
                 );
                 return res.status(403).json({
                     mensaje: 'Usuario desactivado por inactividad de más de 3 meses.'
                 });
             }
-
         }
 
-        // Determinar el tipo de usuario
         let tipoUsuario = '';
         let claveUsuario = '';
 
         if (usuario.clvadmin) {
-            tipoUsuario = 'A'; // Administrador
-            claveUsuario = usuario.clvadmin; // Clave del administrador
+            tipoUsuario = 'A'; 
+            claveUsuario = usuario.clvadmin; 
         } else if (usuario.clvage) {
-            tipoUsuario = 'B'; // Agente
-            claveUsuario = usuario.clvage; // Clave del agente
+            tipoUsuario = 'B';
+            claveUsuario = usuario.clvage; 
         } else if (usuario.clvcli) {
-            tipoUsuario = 'C'; // Cliente
-            claveUsuario = usuario.clvcli; // Clave del cliente
+            tipoUsuario = 'C'; 
+            claveUsuario = usuario.clvcli;
         }
 
-        // Si todo es correcto, generar el token
         const token = jwt.sign(
             {
                 usuarioweb: usuario.usuarioweb,
@@ -127,11 +138,10 @@ exports.autenticarUsuario = async (req, res, next) => {
             }
         );
 
-        // Enviar el token, tipo de usuario y la clave al cliente
         res.json({
             token,
-            tipoUsuario,  // A: Administrador, B: Agente, C: Cliente
-            claveUsuario  // Clave según el tipo de usuario
+            tipoUsuario,  
+            claveUsuario  
         });
 
     } catch (error) {
