@@ -50,6 +50,7 @@ exports.agregarUsuario = async (req, res) => {
     }
 };
 
+
 exports.autenticarUsuario = async (req, res, next) => {
     const { usuarioweb, contraweb } = req.body;
 
@@ -70,7 +71,7 @@ exports.autenticarUsuario = async (req, res, next) => {
 
         // Verifica si el usuario está activado
         if (usuario.statusadmin !== 'A') {
-            return res.status(403).json({ mensaje: 'Usuario no activado' });
+            return res.status(403).json({ mensaje: 'Usuario no activado. Comunicate con tu agente de venta' });
         }
 
         // Verifica si la contraseña es incorrecta
@@ -80,14 +81,29 @@ exports.autenticarUsuario = async (req, res, next) => {
 
         if (usuario.clvcli) {
             const clienteID = usuario.clvcli.trim();
+
+            const ClienteFecha = await Clientes.findOne({
+                where: { clicdclic: clienteID },
+                attributes: ['clifecald']
+            });
+
+            if (!ClienteFecha) {
+                return res.status(404).json({ mensaje: 'Cliente no encontrado' });
+            }
+
+            const fechaCliente = new Date(ClienteFecha.clifecald);
+            const hoy = new Date();
+            const unMesAtras = new Date(hoy);
             const tresMesesAtras = new Date();
+            unMesAtras.setMonth(unMesAtras.getMonth() - 1);
             tresMesesAtras.setMonth(tresMesesAtras.getMonth() - 3); // Restar 3 meses
 
             const [facturasRecientes, remisiones] = await Promise.all([
                 Factura.findOne({
                     where: {
                         clicdclic: clienteID,
-                        fclfecfad: { [Op.gte]: tresMesesAtras }
+                        fclfecfad: { [Op.gte]: tresMesesAtras }, // Facturas en los últimos 3 meses
+                        empcdempn: 20,
                     },
                 }),
                 Remision.findOne({
@@ -95,21 +111,59 @@ exports.autenticarUsuario = async (req, res, next) => {
                         clicdclic: clienteID,
                         empcdempn: 20,
                         remstatuc: 'A',
-                        remfecred: { [Op.gte]: tresMesesAtras }
+                        remfecred: { [Op.gte]: tresMesesAtras } // Remisiones en los últimos 3 meses
                     }
                 })
             ]);
-            console.log(facturasRecientes);
-            console.log("PRUEBA");
-            console.log(remisiones);
-            console.log(tresMesesAtras)
-            if (!facturasRecientes && (!remisiones || remisiones.length === 0)) {
-                await Usuarios.update(
+            console.log(facturasRecientes)
+            console.log(remisiones)
+            if (facturasRecientes || remisiones) {
+               const token = jwt.sign(
+                    {
+                        usuarioweb: usuario.usuarioweb,
+                    },
+                    process.env.KEY,
+                    {
+                        expiresIn: '1h',
+                    }
+                );
+
+                return res.json({
+                    token,
+                    tipoUsuario: 'C',
+                    claveUsuario: clienteID
+                });
+            }else if (fechaCliente < unMesAtras && !(facturasRecientes || remisiones)) {
+                 await Usuarios.update(
                     { statusadmin: 'D' },
                     { where: { usuarioweb } }
                 );
                 return res.status(403).json({
-                    mensaje: 'Usuario desactivado por inactividad de más de 3 meses.'
+                    mensaje: 'Tu usuario de prueba a sido desactivo, porque no realizaste ningun pedido en 1 mes. Comunicate con tu agente de ventas.'
+                });
+            }else if (facturasRecientes && facturasRecientes.fclfecfad < tresMesesAtras) {
+                 await Usuarios.update(
+                    { statusadmin: 'D' },
+                    { where: { usuarioweb } }
+                );
+                return res.status(403).json({
+                    mensaje: 'Tu usuario ha sido desactivado por no tener facturas recientes. Comunicate con tu agente de ventas.'
+                });
+            }else{
+                const token = jwt.sign(
+                    {
+                        usuarioweb: usuario.usuarioweb,
+                    },
+                    process.env.KEY,
+                    {
+                        expiresIn: '1h',
+                    }
+                );
+    
+                return res.json({
+                    token,
+                    tipoUsuario: 'C',
+                    claveUsuario: clienteID
                 });
             }
         }
@@ -118,13 +172,13 @@ exports.autenticarUsuario = async (req, res, next) => {
         let claveUsuario = '';
 
         if (usuario.clvadmin) {
-            tipoUsuario = 'A'; 
-            claveUsuario = usuario.clvadmin; 
+            tipoUsuario = 'A';
+            claveUsuario = usuario.clvadmin;
         } else if (usuario.clvage) {
             tipoUsuario = 'B';
-            claveUsuario = usuario.clvage; 
+            claveUsuario = usuario.clvage;
         } else if (usuario.clvcli) {
-            tipoUsuario = 'C'; 
+            tipoUsuario = 'C';
             claveUsuario = usuario.clvcli;
         }
 
@@ -140,8 +194,8 @@ exports.autenticarUsuario = async (req, res, next) => {
 
         res.json({
             token,
-            tipoUsuario,  
-            claveUsuario  
+            tipoUsuario,
+            claveUsuario
         });
 
     } catch (error) {
