@@ -355,20 +355,25 @@ exports.obtenerRFC = async (req, res, next) => {
   try {
     const { clicdclic } = req.params;
 
-    const rfcCliente = await Clientes.findOne({
-      attributes: ['clicvrfcc'],
+    const cliente = await Clientes.findOne({
+      attributes: ['clicvrfcc', 'clinomcoc'], // Incluye clinomcoc en los atributos a consultar
       where: {
         clicdclic: clicdclic
       }
     });
 
-    if (rfcCliente) {
-      res.status(200).json(rfcCliente);
+    if (cliente) {
+      // Verificar si clinomcoc contiene la palabra "ABARROTES"
+      if (cliente.clinomcoc && cliente.clinomcoc.toUpperCase().includes('ABARROTES')) {
+        res.status(200).json({ clicvrfcc: 'XAXX010101000' });
+      } else {
+        res.status(200).json({ clicvrfcc: cliente.clicvrfcc });
+      }
     } else {
       res.status(404).json({ error: 'Cliente no encontrado' });
     }
   } catch (error) {
-    res.status(500).json({ error: 'Ocurrió un error al obtener el grupo' });
+    res.status(500).json({ error: 'Ocurrió un error al obtener el RFC' });
   }
 };
 
