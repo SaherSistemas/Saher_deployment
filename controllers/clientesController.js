@@ -391,7 +391,6 @@ exports.obtenerDatosPorGrupoParaPedido = async (req, res, next) => {
       }
     };
 
-    // Obtener datos de Almacenes1
     const articulosAlmacenPru = await Almacenes1.findAll({
       attributes: ['empcdempn', 'almexistn', 'artcdartn'],
       include: [{
@@ -403,7 +402,6 @@ exports.obtenerDatosPorGrupoParaPedido = async (req, res, next) => {
       where: { empcdempn: 20, almcdalmn: 1 }
     });
 
-    // Obtener datos de Preciogpo
     const articulosPrecGrup = await Preciogpo.findAll({
       attributes: ['grpcdgrpn', 'artcdartn', 'grpprecin', 'grppreofn', 'grpfecofd'],
       include: [{
@@ -415,7 +413,6 @@ exports.obtenerDatosPorGrupoParaPedido = async (req, res, next) => {
       where: { grpcdgrpn: grupo }
     });
 
-    // Obtener datos de Caducidades
     const caducidadesProximas = await Caducidades.findAll({
       attributes: ['empcdempn', 'artcdartn', 'cadfeccad', 'cadpiezan'],
       where: {
@@ -425,12 +422,11 @@ exports.obtenerDatosPorGrupoParaPedido = async (req, res, next) => {
       }
     });
 
-    // Convertir los resultados a JSON
     const articulosAlmacenData = articulosAlmacenPru.map(item => item.toJSON());
     const articulosPrecioData = articulosPrecGrup.map(item => item.toJSON());
     const caducidadesData = caducidadesProximas.map(item => item.toJSON());
 
-    // Combinar los datos
+
     const articulosCombinados = articulosAlmacenData.map(almacen => {
       const precio = articulosPrecioData.find(precio => precio.artcdartn === almacen.artcdartn);
 
@@ -457,7 +453,6 @@ exports.obtenerDatosPorGrupoParaPedido = async (req, res, next) => {
       };
     });
 
-    // Ordenar por existencia en orden descendente y limitar a 20
     const articulosOrdenados = articulosCombinados
       .sort((a, b) => b.almexistn - a.almexistn)
       .slice(0, 20);
@@ -499,72 +494,72 @@ exports.hacerPedido = async (req, res, next) => {
       mensaje: 'No puedes realizar un pedido debido a que tienes facturas vencidas con más de 10 días vencidas.',
     });
   }
- // Verificar saldo del cliente
- const saldoCliente = await Clientes.findByPk(clicdclic);
- const saldoDisponible = saldoCliente.clilimcrn - saldoCliente.clisaldon;
+  // Verificar saldo del cliente
+  const saldoCliente = await Clientes.findByPk(clicdclic);
+  const saldoDisponible = saldoCliente.clilimcrn - saldoCliente.clisaldon;
 
- // Calcular total de pedidos pendientes de facturar
- const pedidosPendientesDeFacturar = await Pedidos.findAll({
-   where: {
-     clicdclic,
-     pdistatuc: { [Op.in]: ['C', 'R', 'P'] },
-     empcdempn: 20
-   },
-   attributes: ['pdicdpdin']
- });
+  // Calcular total de pedidos pendientes de facturar
+  const pedidosPendientesDeFacturar = await Pedidos.findAll({
+    where: {
+      clicdclic,
+      pdistatuc: { [Op.in]: ['C', 'R', 'P'] },
+      empcdempn: 20
+    },
+    attributes: ['pdicdpdin']
+  });
 
- let totalPedidosPendientes = 0;
- if (pedidosPendientesDeFacturar && pedidosPendientesDeFacturar.length > 0) {
-   for (const pedido of pedidosPendientesDeFacturar) {
-     const pdicdpdin = pedido.dataValues.pdicdpdin;
+  let totalPedidosPendientes = 0;
+  if (pedidosPendientesDeFacturar && pedidosPendientesDeFacturar.length > 0) {
+    for (const pedido of pedidosPendientesDeFacturar) {
+      const pdicdpdin = pedido.dataValues.pdicdpdin;
 
-     const articulosPedido = await Pedido1.findAll({
-       where: {
-         pdicdpdin,
-         empcdempn: 20
-       }
-     });
+      const articulosPedido = await Pedido1.findAll({
+        where: {
+          pdicdpdin,
+          empcdempn: 20
+        }
+      });
 
-     for (const articulo of articulosPedido) {
-       const precioArticulo = articulo.dataValues.pdiprevtn;
-       const cantidad = articulo.dataValues.pdicntpdn;
+      for (const articulo of articulosPedido) {
+        const precioArticulo = articulo.dataValues.pdiprevtn;
+        const cantidad = articulo.dataValues.pdicntpdn;
 
-       const articuloInfo = await articulos.findOne({
-         where: { artcdartn: articulo.dataValues.artcdartn },
-         attributes: ['ivacdivan']
-       });
+        const articuloInfo = await articulos.findOne({
+          where: { artcdartn: articulo.dataValues.artcdartn },
+          attributes: ['ivacdivan']
+        });
 
-       const ivaP = await Iva.findByPk(articuloInfo.dataValues.ivacdivan);
-       const ivaPorciento = ivaP.ivaporcen;
+        const ivaP = await Iva.findByPk(articuloInfo.dataValues.ivacdivan);
+        const ivaPorciento = ivaP.ivaporcen;
 
-       totalPedidosPendientes += (precioArticulo * cantidad) * (1 + ivaPorciento / 100);
-     }
-   }
- }
+        totalPedidosPendientes += (precioArticulo * cantidad) * (1 + ivaPorciento / 100);
+      }
+    }
+  }
 
- // Calcular total del nuevo pedido
- let totalNuevoPedido = 0;
- for (const item of carrito) {
-   const { cantidad, precioReal, articulo } = item;
-   const { artcdartn } = articulo;
+  // Calcular total del nuevo pedido
+  let totalNuevoPedido = 0;
+  for (const item of carrito) {
+    const { cantidad, precioReal, articulo } = item;
+    const { artcdartn } = articulo;
 
-   const articuloInfo = await articulos.findOne({
-     where: { artcdartn },
-     attributes: ['ivacdivan']
-   });
+    const articuloInfo = await articulos.findOne({
+      where: { artcdartn },
+      attributes: ['ivacdivan']
+    });
 
-   const ivaP = await Iva.findByPk(articuloInfo.dataValues.ivacdivan);
-   const ivaPorciento = ivaP.ivaporcen;
+    const ivaP = await Iva.findByPk(articuloInfo.dataValues.ivacdivan);
+    const ivaPorciento = ivaP.ivaporcen;
 
-   totalNuevoPedido += (precioReal * cantidad) * (1 + ivaPorciento / 100);
- }
+    totalNuevoPedido += (precioReal * cantidad) * (1 + ivaPorciento / 100);
+  }
 
- const totalPedidoCliente = totalPedidosPendientes + totalNuevoPedido;
- if (totalPedidoCliente > saldoDisponible) {
-   return res.status(403).json({
-     mensaje: 'El total del pedido nuevo y los pendientes excede el saldo disponible.',
-   });
- }
+  const totalPedidoCliente = totalPedidosPendientes + totalNuevoPedido;
+  if (totalPedidoCliente > saldoDisponible) {
+    return res.status(403).json({
+      mensaje: 'El total del pedido nuevo y los pendientes excede el saldo disponible.',
+    });
+  }
 
 
   const resultado = await numerador.findOne({
