@@ -619,7 +619,7 @@ exports.hacerPedido = async (req, res, next) => {
     pdicdpdin: sigRegistro,
     pdifecped: pdifecped,
     pdifecfad: '0001-01-01',
-    pdistatuc: 'P',
+    pdistatuc: 'Z',
     pdifolpec: '',
     pdipaquec: '',
     pdinumguc: '',
