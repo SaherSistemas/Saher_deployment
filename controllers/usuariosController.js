@@ -95,8 +95,8 @@ exports.autenticarUsuario = async (req, res, next) => {
             const hoy = new Date();
             const unMesAtras = new Date(hoy);
             const tresMesesAtras = new Date();
-            unMesAtras.setMonth(unMesAtras.getMonth() - 1);
-            tresMesesAtras.setMonth(tresMesesAtras.getMonth() - 3); // Restar 3 meses
+            unMesAtras.setMonth(unMesAtras.getMonth() - 10);
+            tresMesesAtras.setMonth(tresMesesAtras.getMonth() - 30); // Restar 3 meses
 
             const [facturasRecientes, remisiones] = await Promise.all([
                 Factura.findOne({
@@ -115,10 +115,8 @@ exports.autenticarUsuario = async (req, res, next) => {
                     }
                 })
             ]);
-            console.log(facturasRecientes)
-            console.log(remisiones)
             if (facturasRecientes || remisiones) {
-               const token = jwt.sign(
+                const token = jwt.sign(
                     {
                         usuarioweb: usuario.usuarioweb,
                     },
@@ -133,23 +131,23 @@ exports.autenticarUsuario = async (req, res, next) => {
                     tipoUsuario: 'C',
                     claveUsuario: clienteID
                 });
-            }else if (fechaCliente < unMesAtras && !(facturasRecientes || remisiones)) {
-                 await Usuarios.update(
+            } else if (fechaCliente < unMesAtras && !(facturasRecientes || remisiones)) {
+                await Usuarios.update(
                     { statusadmin: 'D' },
                     { where: { usuarioweb } }
                 );
                 return res.status(403).json({
                     mensaje: 'Tu usuario de prueba a sido desactivo, porque no realizaste ningun pedido en 1 mes. Comunicate con tu agente de ventas.'
                 });
-            }else if (facturasRecientes && facturasRecientes.fclfecfad < tresMesesAtras) {
-                 await Usuarios.update(
+            } else if (facturasRecientes && facturasRecientes.fclfecfad < tresMesesAtras) {
+                await Usuarios.update(
                     { statusadmin: 'D' },
                     { where: { usuarioweb } }
                 );
                 return res.status(403).json({
                     mensaje: 'Tu usuario ha sido desactivado por no tener facturas recientes. Comunicate con tu agente de ventas.'
                 });
-            }else{
+            } else {
                 const token = jwt.sign(
                     {
                         usuarioweb: usuario.usuarioweb,
@@ -159,7 +157,7 @@ exports.autenticarUsuario = async (req, res, next) => {
                         expiresIn: '1h',
                     }
                 );
-    
+
                 return res.json({
                     token,
                     tipoUsuario: 'C',
@@ -218,10 +216,11 @@ exports.allUsers1 = async (req, res, next) => {
             ...(estado && { statusadmin: estado }),
             ...(searchTerm && {
                 [Op.or]: [
-                    { usuarioweb: { [Op.iLike]: `%${searchTerm}%` } }, // Búsqueda en usuario
-                    { '$cliente.clinomcoc$': { [Op.iLike]: `%${searchTerm}%` } }, // Búsqueda en nombre del cliente
-                    { '$agente.agedsagec$': { [Op.iLike]: `%${searchTerm}%` } }, // Búsqueda en nombre del agente
-                    { '$administrador.nom_adminweb$': { [Op.iLike]: `%${searchTerm}%` } } // Búsqueda en nombre del administrador
+                    { usuarioweb: { [Op.iLike]: `%${searchTerm}%` } },
+                    { '$cliente.clinomcoc$': { [Op.iLike]: `%${searchTerm}%` } },
+                    { '$cliente.clirazonc$': { [Op.iLike]: `%${searchTerm}%` } },
+                    { '$agente.agedsagec$': { [Op.iLike]: `%${searchTerm}%` } },
+                    { '$administrador.nom_adminweb$': { [Op.iLike]: `%${searchTerm}%` } }
                 ]
             })
         };

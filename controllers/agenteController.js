@@ -138,7 +138,7 @@ exports.detallePedido = async (req, res) => {
         const detalles = await Pedido1.findAll({
             where: {
                 pdicdpdin: pedidoId,
-                empcdempn:20
+                empcdempn: 20
             },
             include: [
                 {
@@ -148,11 +148,10 @@ exports.detallePedido = async (req, res) => {
                 },
             ],
         });
-        
+
         if (detalles.length === 0) {
             return res.status(404).json({ message: 'No se encontraron detalles para este pedido.' });
         }
-
         res.status(200).json(detalles);
     } catch (error) {
         console.error('Error al consultar detalles del pedido:', error);
@@ -163,37 +162,36 @@ exports.detallePedido = async (req, res) => {
 
 exports.misClientes = async (req, res, next) => {
     try {
-      const page = parseInt(req.query.page) || 1; // Número de página, por defecto 1
-      const limit = parseInt(req.query.limit) || 50; // Cantidad de registros por página, por defecto 50
-      const offset = (page - 1) * limit;
-      const searchTerm = req.query.nombre || ''; // Término de búsqueda, por defecto vacío
-      const estado = req.query.estado || 'A'; // Estado, por defecto 'A' para activos
-      const { idAgente } = req.params; // Extrae idAgente desde la URL
-  
-      const whereCondition = {
-        ...searchTerm && { clirazonc: { [Op.iLike]: `%${searchTerm}%` } },
-        ...estado && { clistatuc: estado },
-        ...idAgente && { cliagecvn: idAgente } // Nueva condición
-      };
-  
-      const { count, rows } = await Clientes.findAndCountAll({
-        where: whereCondition,
-        offset: offset,
-        limit: limit,
-        order: [['clirazonc', 'ASC']]
-      });
-  
-      res.status(200).json({
-        totalItems: count,
-        totalPages: Math.ceil(count / limit),
-        currentPage: page,
-        items: rows
-      });
+        const page = parseInt(req.query.page) || 1; // Número de página, por defecto 1
+        const limit = parseInt(req.query.limit) || 50; // Cantidad de registros por página, por defecto 50
+        const offset = (page - 1) * limit;
+        const searchTerm = req.query.nombre || ''; // Término de búsqueda, por defecto vacío
+        const estado = req.query.estado || 'A'; // Estado, por defecto 'A' para activos
+        const { idAgente } = req.params; // Extrae idAgente desde la URL
+
+        const whereCondition = {
+            ...searchTerm && { clirazonc: { [Op.iLike]: `%${searchTerm}%` } },
+            ...estado && { clistatuc: estado },
+            ...idAgente && { cliagecvn: idAgente } // Nueva condición
+        };
+
+        const { count, rows } = await Clientes.findAndCountAll({
+            where: whereCondition,
+            offset: offset,
+            limit: limit,
+            order: [['clirazonc', 'ASC']]
+        });
+
+        res.status(200).json({
+            totalItems: count,
+            totalPages: Math.ceil(count / limit),
+            currentPage: page,
+            items: rows
+        });
     } catch (error) {
-      res.status(500).json({ error: error.message });
-      next(error);
+        res.status(500).json({ error: error.message });
+        next(error);
     }
-  };
+};
 
 
-  

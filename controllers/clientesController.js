@@ -2,7 +2,7 @@ const Almacenes1 = require('../models/CLIENTES/Almacenes1.js');
 const Clientes = require('../models/CLIENTES/Clientes.js');
 const CuentasxCobrar = require('../models/CLIENTES/CuentasxCobrar.js');
 const CuentasxCobrar1 = require('../models/CLIENTES/CuentasxCobrar1.js');
-const { Sequelize, Op, literal } = require('sequelize');
+const { Sequelize, Op, literal, where } = require('sequelize');
 const Preciogpo = require('../models/CLIENTES/PrecioGpo.js');
 const articulos = require('../models/ARTICULOS/Articulos.js');
 const Caducidades = require('../models/ARTICULOS/Caducidades.js');
@@ -12,7 +12,8 @@ const Pedido1 = require('../models/PEDIDOS/Pedidos1.js');
 const Remision = require('../models/CLIENTES/Remision.js');
 const nodemailer = require('nodemailer');
 const Factura = require('../models/CLIENTES/Facturas.js');
-const Iva = require('../models/ARTICULOS/Iva.js')
+const Iva = require('../models/ARTICULOS/Iva.js');
+const Agentes = require('../models/AGENTES/Agentes.js');
 
 
 exports.todosClientesSinCuenta = async (req, res, next) => {
@@ -480,7 +481,7 @@ exports.hacerPedido = async (req, res, next) => {
       clicdclic: clicdclic,
       empcdempn: 20,
       cxcstatuc: 'C',
-      cxcfevend: { [Op.lte]: new Date(new Date() - 10 * 24 * 60 * 60 * 1000) },
+      cxcfevend: { [Op.lte]: new Date(new Date() - 1000 * 24 * 60 * 60 * 1000) },
     },
     group: [
       'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
@@ -494,6 +495,43 @@ exports.hacerPedido = async (req, res, next) => {
       mensaje: 'No puedes realizar un pedido debido a que tienes facturas vencidas con más de 10 días vencidas.',
     });
   }
+
+  const remisiones = await Remision.findAll({
+    where: {
+      clicdclic,
+      empcdempn: 20,
+      remstatuc: 'A'
+    }
+  });
+
+  for (const remision of remisiones) {
+    const facturasRem = await CuentasxCobrar.findAll({
+      attributes: [
+        'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
+        'cxcfedocd', 'cxcfeulpd', 'cxcporcon', 'cxcfevend', 'cxcfecand',
+        'cxcstatuc', 'agecdagen', 'cxcivapon', 'cxcpagvic', 'cxcfoldic', 'cxctocivn',
+        [Sequelize.fn('SUM', Sequelize.literal('cxcsubton + cxcimivan')), 'total_suma']
+      ],
+      where: {
+        cxcnudocn: remision.remnufacn,
+        empcdempn: 20,
+        cxcstatuc: 'C',
+        cxcfevend: { [Op.lte]: new Date(new Date() - 1000 * 24 * 60 * 60 * 1000) },
+      },
+      group: [
+        'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
+        'cxcfedocd', 'cxcfeulpd', 'cxcporcon', 'cxcfevend', 'cxcfecand',
+        'cxcstatuc', 'agecdagen', 'cxcivapon', 'cxcpagvic', 'cxcfoldic', 'cxctocivn'
+      ]
+    });
+
+    if (facturasRem.length > 0) {
+      return res.status(403).json({
+        mensaje: 'No puedes realizar un pedido debido a que tienes remisiones vencidas con más de 10 días vencida.',
+      });
+    }
+  }
+
   // Verificar saldo del cliente
   const saldoCliente = await Clientes.findByPk(clicdclic);
   const saldoDisponible = saldoCliente.clilimcrn - saldoCliente.clisaldon;
@@ -502,7 +540,7 @@ exports.hacerPedido = async (req, res, next) => {
   const pedidosPendientesDeFacturar = await Pedidos.findAll({
     where: {
       clicdclic,
-      pdistatuc: { [Op.in]: ['C', 'R', 'P'] },
+      pdistatuc: { [Op.in]: ['C', 'R', 'P', 'Z'] },
       empcdempn: 20
     },
     attributes: ['pdicdpdin']
@@ -573,7 +611,6 @@ exports.hacerPedido = async (req, res, next) => {
 
   if (resultado) {
     const numfolcon = resultado.numfolcon;
-    console.log('Numfolcon', numfolcon)
     const numEnter = parseInt(numfolcon, 10);
     sigRegistro = numEnter + 1;
   }
@@ -602,7 +639,13 @@ exports.hacerPedido = async (req, res, next) => {
     pdihoempc: '',
   };
 
+  const clienteInfo = await Clientes.findByPk(clicdclic, {
+    attributes: ['clinomcoc']
+  });
 
+  if (clienteInfo && clienteInfo.clinomcoc.toUpperCase().includes('ABARROT')) {
+    nuevoPedido.pdistatuc = 'Z'
+  }
   const pedidoEncabezado = await Pedidos.create(nuevoPedido);
 
 
@@ -652,71 +695,76 @@ exports.hacerPedido = async (req, res, next) => {
       clicdclic: clicdclic,
     }
   })
+  const correoAgente = await Agentes.findOne({
+    attributes: ['ageplazac'],
+    where: {
+      agecdagen: agente.dataValues.cliagecvn,
+    }
+  })
 
-  const diccionario = {
-    25: "mezariverapedroluis@gmail.com",
-    19: "mezariverapedroluis@gmail.com",
-    13: "mezariverapedroluis@gmail.com",
-    5: "mezariverapedroluis@gmail.com",
-    4: "mezariverapedroluis@gmail.com"
-  };
+  const email = correoAgente.dataValues?.ageplazac;
+  if (email) {
 
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: 'farmacias.saher@gmail.com',
+        pass: 'ahpa uwpg bkoa lulp',
+      },
+    });
 
-  if (agente && agente.cliagecvn) {
-    const key = agente.cliagecvn;
-    const email = diccionario[key];
+    const nomCliente = await Clientes.findOne({
+      attributes: ['clirazonc'],
+      where: {
+        clicdclic: clicdclic,
+      }
+    })
 
-    if (email) {
-      console.log(`El email asociado es: ${email}`);
-
-      const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: 'farmacias.saher@gmail.com',
-          pass: 'ahpa uwpg bkoa lulp',
-        },
-      });
-
-      const nomCliente = await Clientes.findOne({
-        attributes: ['clirazonc'],
-        where: {
-          clicdclic: clicdclic,
-        }
-      })
-
-      const correo = {
-        from: 'farmacias.saher@gmail.com',
-        to: `${email}`,
-        subject: `Nuevo Pedido Realizado: ${sigRegistro}`,
-        html: `
+    const correo = {
+      from: 'farmacias.saher@gmail.com',
+      to: `${email}`,
+      subject: `Nuevo Pedido Realizado: ${sigRegistro}`,
+      html: `
         <h1>Pedido Realizado</h1>
         <p>Se ha realizado un nuevo pedido con el siguiente folio:</p>
         <p><strong>Pedido: ${sigRegistro}</strong></p>
         <p><strong>Cliente:</strong> ${nomCliente.dataValues.clirazonc}</p>
         <p><strong>Fecha:</strong> ${pdifecped}</p>
+    
+        <h3>Detalle del Pedido</h3>
+        <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse;">
+          <thead>
+            <tr>
+              <th>Código Artículo</th>
+              <th>Descripción</th>
+              <th>Cantidad</th>
+              <th>Precio</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${carrito.map(item => {
+        const { articulo, cantidad, precioReal } = item;
+        return `
+                <tr>
+                  <td>${articulo.artcdartn}</td>
+                  <td>${articulo.artdsartc}</td>
+                  <td>${cantidad}</td>
+                  <td>${precioReal}</td>
+                </tr>
+              `;
+      }).join('')}
+          </tbody>
+        </table>
+    
         <p>Gracias por usar nuestro sistema.</p>
       `,
-      };
+    };
 
-      await transporter.sendMail(correo);
+    await transporter.sendMail(correo);
 
-    } else {
-      console.log('No se encontró un email asociado para esta clave.');
-    }
   } else {
-    console.log('No se encontró el agente.');
+    console.log('No se encontró un email asociado para esta clave.');
   }
-  /*
-    25:  FABIAN RENTERIA
-    19: NUBIA SAMANTA
-    13:ESTEBAN 
-    5: LUCANO
-    4: DAGOBERTO
-    LUCANO, ESTEBAN, FABIAN RENTERIA, DAGOBERTO
-  
-  */
-
-
   res.json({ mensaje: 'Pedido realizado y correo enviado.' });
 };
 
@@ -763,7 +811,6 @@ exports.pedido = async (req, res, next) => {
         'fclfolpec',  // Folio del pedido
       ],
       where: {
-        clicdclic: cliente,
         empcdempn: 20,
       },
     });
@@ -783,7 +830,6 @@ exports.pedido = async (req, res, next) => {
         facturaDigital: facturaMap[pedidoJSON.pdicdpdin.trim()] || null,
       };
     });
-
     res.json({ pedidos: pedidosConFacturas });
   } catch (error) {
     res.status(500).json({ mensaje: "Error al obtener los pedidos." });
