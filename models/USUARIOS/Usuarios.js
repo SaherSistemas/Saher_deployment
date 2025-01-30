@@ -26,15 +26,18 @@ const usuarios = sequelize.define('webusuarios', {
         type: DataTypes.SMALLINT,
         allowNull: true,
     },
-    statusadmin :{
+    statusadmin: {
         type: DataTypes.CHAR(1),
-        allowNull:false,
+        allowNull: false,
         defaultValue: 'A'
     },
+    fechainiciosesion: {
+        type: DataTypes.DATE,
+    }
 }, {
     tableName: 'webusuarios', // Asegúrate de que coincida con el nombre de tu tabla en PostgreSQL
     timestamps: false, // Desactiva la creación de las columnas createdAt y updatedAt
-    freezeTableName: true, 
+    freezeTableName: true,
 })
 
 

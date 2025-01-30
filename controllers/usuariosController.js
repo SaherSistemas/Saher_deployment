@@ -95,7 +95,7 @@ exports.autenticarUsuario = async (req, res, next) => {
             const hoy = new Date();
             const unMesAtras = new Date(hoy);
             const tresMesesAtras = new Date();
-            unMesAtras.setMonth(unMesAtras.getMonth() - 10);
+            unMesAtras.setMonth(unMesAtras.getMonth() - 10);//1 mes
             tresMesesAtras.setMonth(tresMesesAtras.getMonth() - 30); // Restar 3 meses
 
             const [facturasRecientes, remisiones] = await Promise.all([
@@ -116,6 +116,7 @@ exports.autenticarUsuario = async (req, res, next) => {
                 })
             ]);
             if (facturasRecientes || remisiones) {
+
                 const token = jwt.sign(
                     {
                         usuarioweb: usuario.usuarioweb,
@@ -125,13 +126,17 @@ exports.autenticarUsuario = async (req, res, next) => {
                         expiresIn: '1h',
                     }
                 );
-
+                await Usuarios.update(
+                    { fechainiciosesion: new Date() }, // Actualiza con la fecha/hora actual
+                    { where: { usuarioweb } }
+                );
                 return res.json({
                     token,
                     tipoUsuario: 'C',
                     claveUsuario: clienteID
                 });
             } else if (fechaCliente < unMesAtras && !(facturasRecientes || remisiones)) {
+                //DESACTIVAR POR NO HABER REALIZADO NINGUN PEDIDO
                 await Usuarios.update(
                     { statusadmin: 'D' },
                     { where: { usuarioweb } }
@@ -140,6 +145,7 @@ exports.autenticarUsuario = async (req, res, next) => {
                     mensaje: 'Tu usuario de prueba a sido desactivo, porque no realizaste ningun pedido en 1 mes. Comunicate con tu agente de ventas.'
                 });
             } else if (facturasRecientes && facturasRecientes.fclfecfad < tresMesesAtras) {
+                //DESACTIVAR USUARIO POR NO TENER FACTURAS RECIENTES
                 await Usuarios.update(
                     { statusadmin: 'D' },
                     { where: { usuarioweb } }
@@ -158,6 +164,10 @@ exports.autenticarUsuario = async (req, res, next) => {
                     }
                 );
 
+                await Usuarios.update(
+                    { fechainiciosesion: new Date() }, // Actualiza con la fecha/hora actual
+                    { where: { usuarioweb } }
+                );
                 return res.json({
                     token,
                     tipoUsuario: 'C',
@@ -188,6 +198,11 @@ exports.autenticarUsuario = async (req, res, next) => {
             {
                 expiresIn: '1h',
             }
+        );
+
+        await Usuarios.update(
+            { fechainiciosesion: new Date() }, // Actualiza con la fecha/hora actual
+            { where: { usuarioweb } }
         );
 
         res.json({

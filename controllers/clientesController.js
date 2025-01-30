@@ -393,7 +393,7 @@ exports.obtenerDatosPorGrupoParaPedido = async (req, res, next) => {
     };
 
     const articulosAlmacenPru = await Almacenes1.findAll({
-      attributes: ['empcdempn', 'almexistn', 'artcdartn'],
+      attributes: ['empcdempn', 'almexistn', 'artcdartn', 'almultctn'],
       include: [{
         model: articulos,
         as: 'articulo',
@@ -427,7 +427,6 @@ exports.obtenerDatosPorGrupoParaPedido = async (req, res, next) => {
     const articulosPrecioData = articulosPrecGrup.map(item => item.toJSON());
     const caducidadesData = caducidadesProximas.map(item => item.toJSON());
 
-
     const articulosCombinados = articulosAlmacenData.map(almacen => {
       const precio = articulosPrecioData.find(precio => precio.artcdartn === almacen.artcdartn);
 
@@ -450,7 +449,8 @@ exports.obtenerDatosPorGrupoParaPedido = async (req, res, next) => {
         caducidad: caducidad ? caducidad.cadfeccad : null,
         grppreofn: precio ? precio.grppreofn : null,
         grpfecofd: precio ? precio.grpfecofd : null,
-        precioReal: precioReal
+        precioReal: precioReal,
+        almultctn: almacen.almultctn
       };
     });
 
@@ -463,6 +463,7 @@ exports.obtenerDatosPorGrupoParaPedido = async (req, res, next) => {
     res.status(500).json({ error: 'Ocurrió un error al obtener los datos' });
   }
 };
+
 
 
 
@@ -481,7 +482,7 @@ exports.hacerPedido = async (req, res, next) => {
       clicdclic: clicdclic,
       empcdempn: 20,
       cxcstatuc: 'C',
-      cxcfevend: { [Op.lte]: new Date(new Date() - 1000 * 24 * 60 * 60 * 1000) },
+      cxcfevend: { [Op.lte]: new Date(new Date() - 1000 * 24 * 60 * 60 * 1000) },//CAMBIAR A 10 DIAS 
     },
     group: [
       'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
@@ -516,7 +517,7 @@ exports.hacerPedido = async (req, res, next) => {
         cxcnudocn: remision.remnufacn,
         empcdempn: 20,
         cxcstatuc: 'C',
-        cxcfevend: { [Op.lte]: new Date(new Date() - 1000 * 24 * 60 * 60 * 1000) },
+        cxcfevend: { [Op.lte]: new Date(new Date() - 1000 * 24 * 60 * 60 * 1000) }, //CAMBIAR A 10 DIAS 
       },
       group: [
         'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',

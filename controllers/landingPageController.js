@@ -21,7 +21,7 @@ exports.obtenerOfertas = async (req, res, next) => {
       include: [{
         model: require('../models/ARTICULOS/Articulos'), // Ajusta la ruta según la estructura
         as: 'articulo',
-        attributes: ['artcdartn', 'artdsartc']
+        attributes: ['artcdartn', 'artdsartc', 'artdsgenc']
       }],
       limit: 6
     });
@@ -32,7 +32,8 @@ exports.obtenerOfertas = async (req, res, next) => {
         codigoArticulo: product.artcdartn,
         precioNormal: product.grpprecin,
         precioOferta: product.grppreofn,
-        nombreArticulo: product.articulo ? product.articulo.artdsartc : "Desconocido"
+        nombreArticulo: product.articulo ? product.articulo.artdsartc : "Desconocido",
+        componente: product.articulo ? product.articulo.artdsgenc : "Desconocido"
       };
     });
 
@@ -70,7 +71,7 @@ exports.obtenerTodasOfertas = async (req, res) => {
       include: [{
         model: require('../models/ARTICULOS/Articulos'),
         as: 'articulo',
-        attributes: ['artcdartn', 'artdsartc']
+        attributes: ['artcdartn', 'artdsartc', 'artdsgenc']
       }],
       limit: parseInt(limit),
       offset: parseInt(offset),
@@ -81,7 +82,8 @@ exports.obtenerTodasOfertas = async (req, res) => {
       codigoArticulo: product.artcdartn,
       precioNormal: product.grpprecin,
       precioOferta: product.grppreofn,
-      nombreArticulo: product.articulo ? product.articulo.artdsartc : "Desconocido"
+      nombreArticulo: product.articulo ? product.articulo.artdsartc : "Desconocido",
+      componente: product.articulo ? product.articulo.artdsgenc : "Desconocido"
     }));
 
     // Devuelve la respuesta como JSON junto con los datos de paginación
