@@ -114,7 +114,7 @@ exports.pedidosDiaAgente = async (req, res, next) => {
         });
 
         if (pedidos.length === 0) {
-            return res.status(404).json({ message: 'No se encontraron pedidos para los clientes asociados' });
+            return res.status(200).json({ message: 'No se encontraron pedidos para los clientes asociados' });
         }
 
         // Añade la razón social al resultado
@@ -125,8 +125,8 @@ exports.pedidosDiaAgente = async (req, res, next) => {
 
         res.status(200).json(pedidosConRazonSocial);
     } catch (error) {
-        console.error("Error al consultar pedidos del día para el agente:", error);
-        res.status(500).json({ message: 'Error en el servidor', error: error.message });
+
+        res.status(500).json({ error: error.message });
     }
 };
 
@@ -170,9 +170,14 @@ exports.misClientes = async (req, res, next) => {
         const { idAgente } = req.params; // Extrae idAgente desde la URL
 
         const whereCondition = {
-            ...searchTerm && { clirazonc: { [Op.iLike]: `%${searchTerm}%` } },
-            ...estado && { clistatuc: estado },
-            ...idAgente && { cliagecvn: idAgente } // Nueva condición
+            ...(searchTerm && {
+                [Op.or]: [
+                    { clirazonc: { [Op.iLike]: `%${searchTerm}%` } },
+                    { clinomcoc: { [Op.iLike]: `%${searchTerm}%` } }
+                ]
+            }),
+            ...(estado && { clistatuc: estado }),
+            ...(idAgente && { cliagecvn: idAgente }) // Nueva condición
         };
 
         const { count, rows } = await Clientes.findAndCountAll({
@@ -194,4 +199,32 @@ exports.misClientes = async (req, res, next) => {
     }
 };
 
+
+
+
+exports.pedidoCaptura = async (req, res, next) => {
+    try {
+
+        const { clicdclic } = req.query;
+
+        const pedidoEnCaptura = await Pedidos.findAll({
+            where:
+            {
+                clicdclic: clicdclic,
+                pdistatuc: 'E',
+                empcdempn: 20
+            }
+        })
+
+
+        return res.status(200).json({
+            pedidoEnCaptura: pedidoEnCaptura,
+        });
+    } catch (error) {
+        return res.status(500).json({
+            error: 'Hubo un problema.',
+            details: error.message
+        });
+    }
+};
 

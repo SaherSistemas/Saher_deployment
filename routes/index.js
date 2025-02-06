@@ -15,7 +15,7 @@ const sliderController = require('../controllers/sliderController.js')
 const auth = require('../middleware/auth.js');
 
 module.exports = function () {
-/*ARTICULOS*/
+    /*ARTICULOS*/
     /*MOSTRAR TODOS LOS ARTICULOS  */
     router.get('/articulos',
         articuloController.mostrarArticulos);
@@ -33,60 +33,60 @@ module.exports = function () {
 
 
     /*SACAR LAS LAS UNIDADES DE MEDIDA */
-    router.get('/unidadMedida',auth,
+    router.get('/unidadMedida', auth,
         articuloController.unidadMedida);
 
     /*SACAR CLAVE SAT  */
-    router.get('/catservicio/:clave',auth,
+    router.get('/catservicio/:clave', auth,
         articuloController.obtenerServicioPorClave);
 
     /*SACAR LOS IVAS */
-    router.get('/iva',auth,
+    router.get('/iva', auth,
         articuloController.obtenerIvas);
-        
+
     /*ENVIAR EL ARTICULO PARA GUARDAR */
-    router.post('/articulos',auth,
+    router.post('/articulos', auth,
         articuloController.nuevoArticuloNew);
 
     /*ACTIVAR Y DESACTIVAR EL ARTICULO */
-    router.patch('/articulos',auth,
+    router.patch('/articulos', auth,
         articuloController.activarYDesactivarArticulo);
 
     /*FALTA*/
     router.put('/articulos/:artcdartn',
         articuloController.modificarArticulo);
-/*FIN ARTICULO */
+    /*FIN ARTICULO */
 
-/*USUARIO*/
+    /*USUARIO*/
     // MOSTRAR TODOS LOS USUARIOS 
-    router.get('/usuarios2',auth,
+    router.get('/usuarios2', auth,
         usuariosController.allUsers1);
-    
+
     /*NUEVO USUARIO */
     router.post('/crear-cuenta', usuariosController.agregarUsuario);
-/*INICIAR SESION */
+    /*INICIAR SESION */
     router.post('/iniciar-sesion', usuariosController.autenticarUsuario);
 
-  
+
     /*MOPSTRAR EN EL COMBO BOX PARA DAR DE ALTA UN NUEVO USUARIO */
-    router.get('/agentes/sinCuenta',auth,
+    router.get('/agentes/sinCuenta', auth,
         agenteController.todosAgentesSinCuenta);
 
-    router.get('/clientes/sinCuenta',auth,
+    router.get('/clientes/sinCuenta', auth,
         clienteController.todosClientesSinCuenta);
 
     router.get('/administradores/sinCuenta', auth,
         adminController.todosAdminSinCuenta);
 
-    router.patch('/usuarios/activarDesactivar',auth,
+    router.patch('/usuarios/activarDesactivar', auth,
         usuariosController.activarYDesactivarUsuario);
 
     // Ruta para cambiar la contraseña de un usuario
-    router.patch('/usuarios/cambiarContrasena/:usuarioweb',auth,
+    router.patch('/usuarios/cambiarContrasena/:usuarioweb', auth,
         usuariosController.cambiarContrasenaSinVerificarAntigua);
 
     /* AGENTES */
-    router.get('/agentes',auth,
+    router.get('/agentes', auth,
         agenteController.todosAgentes);
 
     router.patch('/agente/activarDesactivar',
@@ -105,8 +105,9 @@ module.exports = function () {
     router.get('/obtenerUsuario',
         usuariosController.obtenerUsuario);
 
+
     // ADMINISTRADORES
-    router.get('/administradores',auth,
+    router.get('/administradores', auth,
         adminController.administradores);
 
     router.patch('/administrador/activarDesactivar',
@@ -127,7 +128,7 @@ module.exports = function () {
     router.get('/detallesProducto/:artcdartn', clienteController.obtenerDetalles);
 
     router.get('/ListaParaPedido', clienteController.obtenerDatosPorGrupoParaPedido);
-    
+
     router.post('/hacerPedido', clienteController.hacerPedido)
     //FACTURAS 
     router.get('/facturasTotal/:claveUsuario', clienteController.totalFacturas);
@@ -135,7 +136,7 @@ module.exports = function () {
     router.get('/facturas/obtenerRFC/:clicdclic', clienteController.obtenerRFC);
 
     router.get('/pedidosCliente', clienteController.pedido);
-    
+
     // Ruta para manejar la subida de imágenes
     router.post('/subirImagen', sliderController.subirImagen);
 
@@ -145,17 +146,21 @@ module.exports = function () {
 
     router.post('/contacto', landingPageController.guardarContacto);
     // Ruta para obtener todos los contactos
-    router.get('/contactos',auth, landingPageController.obtenerContactos);
-    
-  
+    router.get('/contactos', auth, landingPageController.obtenerContactos);
+
+
 
     /*AGENTE*/
-        //PEDIDO
-        router.get('/pedidos/diaAgente', agenteController.pedidosDiaAgente);
-        //DETALLE PEDIDO
-        router.get('/pedidos/detalle/:pedidoId', agenteController.detallePedido);
-        //MIS CLIENTES
-        router.get('/misclientes/:idAgente', agenteController.misClientes)
-        
+    //PEDIDO
+    router.get('/pedidos/diaAgente', agenteController.pedidosDiaAgente);
+
+    router.get('/obtenerDatosCliente', clienteController.obtenerDatosCliente)
+    //DETALLE PEDIDO
+    router.get('/pedidos/detalle/:pedidoId', agenteController.detallePedido);
+    //MIS CLIENTES
+    router.get('/misclientes/:idAgente', agenteController.misClientes)
+
+    router.get('/pedidosEnCaptura', agenteController.pedidoCaptura)
+
     return router;
 }

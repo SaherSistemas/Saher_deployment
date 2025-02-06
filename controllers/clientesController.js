@@ -2,7 +2,7 @@ const Almacenes1 = require('../models/CLIENTES/Almacenes1.js');
 const Clientes = require('../models/CLIENTES/Clientes.js');
 const CuentasxCobrar = require('../models/CLIENTES/CuentasxCobrar.js');
 const CuentasxCobrar1 = require('../models/CLIENTES/CuentasxCobrar1.js');
-const { Sequelize, Op, literal, where } = require('sequelize');
+const { Sequelize, Op } = require('sequelize');
 const Preciogpo = require('../models/CLIENTES/PrecioGpo.js');
 const articulos = require('../models/ARTICULOS/Articulos.js');
 const Caducidades = require('../models/ARTICULOS/Caducidades.js');
@@ -14,6 +14,7 @@ const nodemailer = require('nodemailer');
 const Factura = require('../models/CLIENTES/Facturas.js');
 const Iva = require('../models/ARTICULOS/Iva.js');
 const Agentes = require('../models/AGENTES/Agentes.js');
+
 
 
 exports.todosClientesSinCuenta = async (req, res, next) => {
@@ -212,6 +213,7 @@ exports.totalFacturas = async (req, res, next) => {
 };
 
 
+
 exports.claveGrp = async (req, res, next) => {
   try {
     const { clicdclic } = req.params;
@@ -234,16 +236,14 @@ exports.claveGrp = async (req, res, next) => {
 };
 
 
-exports.obtenerDatosPorGrupo = async (req, res, next) => {
+
+exports.obtenerDatosPorGrupo = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 52;
-    const offset = (page - 1) * limit;
     const searchTerm = req.query.nombre || '';
-
     const grupo = req.query.grupoPrecio;
-
-
+    const orderBy = req.query.orderBy || ''; // Capturar el criterio de orden
 
     const whereCondition = {
       ...searchTerm && {
@@ -255,7 +255,7 @@ exports.obtenerDatosPorGrupo = async (req, res, next) => {
       artstatuc: 'A'
     };
 
-    const { count: totalAlmacen, rows: articulosAlmacenPru } = await Almacenes1.findAndCountAll({
+    const articulosAlmacenPru = await Almacenes1.findAll({
       attributes: ['empcdempn', 'almexistn'],
       include: [{
         model: articulos,
@@ -263,11 +263,8 @@ exports.obtenerDatosPorGrupo = async (req, res, next) => {
         attributes: ['artcdartn', 'artdsartc', 'artdsgenc', 'artemporn'],
         where: whereCondition
       }],
-      where: { empcdempn: 20, almcdalmn: 1 },
-      offset: offset,
-      limit: limit
+      where: { empcdempn: 20, almcdalmn: 1 }
     });
-
 
     const articulosPrecGrup = await Preciogpo.findAll({
       attributes: ['grpcdgrpn', 'artcdartn', 'grpprecin'],
@@ -280,7 +277,6 @@ exports.obtenerDatosPorGrupo = async (req, res, next) => {
       where: { grpcdgrpn: grupo }
     });
 
-
     const caducidadesProximas = await Caducidades.findAll({
       attributes: ['empcdempn', 'artcdartn', 'cadfeccad', 'cadpiezan'],
       where: {
@@ -290,15 +286,12 @@ exports.obtenerDatosPorGrupo = async (req, res, next) => {
       }
     });
 
-
     const articulosAlmacenData = articulosAlmacenPru.map(item => item.toJSON());
     const articulosPrecioData = articulosPrecGrup.map(item => item.toJSON());
     const caducidadesData = caducidadesProximas.map(item => item.toJSON());
 
-    const articulosCombinados = articulosAlmacenData.map(almacen => {
+    let articulosCombinados = articulosAlmacenData.map(almacen => {
       const precio = articulosPrecioData.find(precio => precio.artcdartn === almacen.articulo.artcdartn);
-
-
       const caducidad = caducidadesData
         .filter(cad => cad.artcdartn === almacen.articulo.artcdartn)
         .sort((a, b) => new Date(a.cadfeccad) - new Date(b.cadfeccad))[0];
@@ -310,16 +303,29 @@ exports.obtenerDatosPorGrupo = async (req, res, next) => {
       };
     });
 
+    if (orderBy === 'name') {
+      articulosCombinados.sort((a, b) => a.articulo.artdsartc.localeCompare(b.articulo.artdsartc));
+    } else if (orderBy === 'existence') {
+      articulosCombinados.sort((a, b) => b.almexistn - a.almexistn);
+    }
+
+    const totalItems = articulosCombinados.length;
+    const totalPages = Math.ceil(totalItems / limit);
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedItems = articulosCombinados.slice(startIndex, endIndex);
+
     res.status(200).json({
-      totalItems: totalAlmacen,
-      totalPages: Math.ceil(totalAlmacen / limit),
+      totalItems,
+      totalPages,
       currentPage: page,
-      items: articulosCombinados
+      items: paginatedItems
     });
   } catch (error) {
     res.status(500).json({ error: 'Ocurrió un error al obtener los datos' });
   }
 };
+
 
 
 exports.obtenerDetalles = async (req, res, next) => {
@@ -382,6 +388,9 @@ exports.obtenerDatosPorGrupoParaPedido = async (req, res, next) => {
   try {
     const searchTerm = req.query.nombre || '';
     const grupo = req.query.grupoPrecio;
+    const page = parseInt(req.query.page) || 1; // Página actual (por defecto 1)
+    const limit = parseInt(req.query.limit) || 20; // Límite de artículos por página (por defecto 20)
+    const offset = (page - 1) * limit; // Cálculo del offset
 
     const whereCondition = {
       ...searchTerm && {
@@ -392,6 +401,7 @@ exports.obtenerDatosPorGrupoParaPedido = async (req, res, next) => {
       }
     };
 
+    // Consultas de datos originales sin paginación para combinar
     const articulosAlmacenPru = await Almacenes1.findAll({
       attributes: ['empcdempn', 'almexistn', 'artcdartn', 'almultctn'],
       include: [{
@@ -423,13 +433,14 @@ exports.obtenerDatosPorGrupoParaPedido = async (req, res, next) => {
       }
     });
 
+    // Transformación de datos
     const articulosAlmacenData = articulosAlmacenPru.map(item => item.toJSON());
     const articulosPrecioData = articulosPrecGrup.map(item => item.toJSON());
     const caducidadesData = caducidadesProximas.map(item => item.toJSON());
 
+    // Combinación y ordenamiento de datos
     const articulosCombinados = articulosAlmacenData.map(almacen => {
       const precio = articulosPrecioData.find(precio => precio.artcdartn === almacen.artcdartn);
-
       const caducidad = caducidadesData
         .filter(cad => cad.artcdartn === almacen.artcdartn)
         .sort((a, b) => new Date(a.cadfeccad) - new Date(b.cadfeccad))[0];
@@ -454,15 +465,27 @@ exports.obtenerDatosPorGrupoParaPedido = async (req, res, next) => {
       };
     });
 
-    const articulosOrdenados = articulosCombinados
-      .sort((a, b) => b.almexistn - a.almexistn)
-      .slice(0, 20);
+    // Ordenar por existencia y aplicar paginación
+    const articulosOrdenados = articulosCombinados.sort((a, b) => b.almexistn - a.almexistn);
 
-    res.status(200).json(articulosOrdenados);
+    // Calcular total de páginas
+    const totalItems = articulosOrdenados.length;
+    const totalPages = Math.ceil(totalItems / limit);
+
+    // Aplicar paginación
+    const datosPaginados = articulosOrdenados.slice(offset, offset + limit);
+
+    res.status(200).json({
+      totalItems,
+      totalPages,
+      currentPage: page,
+      items: datosPaginados
+    });
   } catch (error) {
     res.status(500).json({ error: 'Ocurrió un error al obtener los datos' });
   }
 };
+
 
 
 
@@ -866,3 +889,31 @@ exports.obtenerIVAProduc = async (req, res, next) => {
     });
   }
 };
+
+
+exports.obtenerDatosCliente = async (req, res, next) => {
+  try {
+    const { claveUsuario } = req.query;
+
+    if (!claveUsuario) {
+      return res.status(400).json({ message: 'Faltan parámetros' });
+    }
+
+    let infoUsuario;
+
+    infoUsuario = await Clientes.findOne({
+      where: {
+        clicdclic: claveUsuario.trim()
+      }
+    });
+
+    if (!infoUsuario) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    res.status(200).json(infoUsuario);
+  } catch (error) {
+    console.error("Error en el controlador perfil:", error);
+    res.status(500).json({ message: 'Error en el servidor', error: error.message });
+  }
+}

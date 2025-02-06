@@ -55,8 +55,9 @@ exports.autenticarUsuario = async (req, res, next) => {
     const { usuarioweb, contraweb } = req.body;
 
     try {
+        const usuarioLimpio = usuarioweb.trim();
         const usuario = await Usuarios.findOne({
-            where: { usuarioweb },
+            where: { usuarioweb: usuarioLimpio },
             include: [
                 { model: Clientes, as: 'cliente' },
                 { model: Agentes, as: 'agente' },
@@ -249,7 +250,7 @@ exports.allUsers1 = async (req, res, next) => {
             ],
             offset: offset,
             limit: limit,
-            order: [['usuarioweb', 'ASC']]
+            order: [['fechainiciosesion', 'DESC']]
         });
 
         const processedRows = rows.map(row => {

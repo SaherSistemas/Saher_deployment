@@ -8,7 +8,7 @@ const usuarios = sequelize.define('webusuarios', {
     usuarioweb: {
         type: DataTypes.STRING(50),
         allowNull: false,
-        primaryKey: true // Define la clave primaria como usuarioweb
+        primaryKey: true
     },
     contraweb: {
         type: DataTypes.STRING(150),
