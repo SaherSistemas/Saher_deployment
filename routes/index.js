@@ -8,7 +8,7 @@ const agenteController = require('../controllers/agenteController.js');
 const clienteController = require('../controllers/clientesController.js');
 const adminController = require('../controllers/administradoresController.js');
 const landingPageController = require('../controllers/landingPageController.js');
-const sliderController = require('../controllers/sliderController.js')
+const pedidoController = require('../controllers/pedidosController.js');
 
 
 //proteger rutas
@@ -30,7 +30,6 @@ module.exports = function () {
     /*MOSTRAR LAS CLASIFICACIONES PARA UN NUEVO ARTICULO */
     router.get('/clasificacion', auth,
         articuloController.clasificaciones);
-
 
     /*SACAR LAS LAS UNIDADES DE MEDIDA */
     router.get('/unidadMedida', auth,
@@ -55,6 +54,16 @@ module.exports = function () {
     /*FALTA*/
     router.put('/articulos/:artcdartn',
         articuloController.modificarArticulo);
+
+    router.get('/ListaParaPedido', articuloController.obtenerDatosPorGrupoParaPedido);
+
+    router.get('/iva/:ivacdivan', articuloController.obtenerIVAProduc);
+
+    router.get('/existencias/:artcdartn', articuloController.existenciasProducto);
+
+    router.get('/productosLista', articuloController.obtenerDatosPorGrupo)
+
+    router.get('/productosPromocionados', articuloController.obtenerProductosPromocionados)
     /*FIN ARTICULO */
 
     /*USUARIO*/
@@ -66,11 +75,6 @@ module.exports = function () {
     router.post('/crear-cuenta', usuariosController.agregarUsuario);
     /*INICIAR SESION */
     router.post('/iniciar-sesion', usuariosController.autenticarUsuario);
-
-
-    /*MOPSTRAR EN EL COMBO BOX PARA DAR DE ALTA UN NUEVO USUARIO */
-    router.get('/agentes/sinCuenta', auth,
-        agenteController.todosAgentesSinCuenta);
 
     router.get('/clientes/sinCuenta', auth,
         clienteController.todosClientesSinCuenta);
@@ -85,16 +89,21 @@ module.exports = function () {
     router.patch('/usuarios/cambiarContrasena/:usuarioweb', auth,
         usuariosController.cambiarContrasenaSinVerificarAntigua);
 
+
     /* AGENTES */
     router.get('/agentes', auth,
         agenteController.todosAgentes);
 
     router.patch('/agente/activarDesactivar',
         agenteController.activarYDesactivarAgente);
+    //MIS CLIENTES
+    router.get('/misclientes/:idAgente', agenteController.misClientes)
+
+    router.get('/agentes/sinCuenta', auth,
+        agenteController.todosAgentesSinCuenta);
 
     /* CLIENTES */
-
-    router.get('/iva/:ivacdivan', clienteController.obtenerIVAProduc);
+    router.get('/obtenerDatosCliente', clienteController.obtenerDatosCliente)
 
     router.get('/clientes',
         auth, clienteController.todosClientes);
@@ -121,24 +130,14 @@ module.exports = function () {
 
     router.get('/perfil', usuariosController.perfil);
 
-    router.get('/claveGrp/:clicdclic', clienteController.claveGrp)
-
-    router.get('/productosLista', clienteController.obtenerDatosPorGrupo)
+    router.get('/claveGrp/:clicdclic', clienteController.claveGrp);
 
     router.get('/detallesProducto/:artcdartn', clienteController.obtenerDetalles);
 
-    router.get('/ListaParaPedido', clienteController.obtenerDatosPorGrupoParaPedido);
-
-    router.post('/hacerPedido', clienteController.hacerPedido)
     //FACTURAS 
     router.get('/facturasTotal/:claveUsuario', clienteController.totalFacturas);
 
     router.get('/facturas/obtenerRFC/:clicdclic', clienteController.obtenerRFC);
-
-    router.get('/pedidosCliente', clienteController.pedido);
-
-    // Ruta para manejar la subida de imágenes
-    router.post('/subirImagen', sliderController.subirImagen);
 
     router.get('/ofertas', landingPageController.obtenerOfertas);
 
@@ -148,19 +147,26 @@ module.exports = function () {
     // Ruta para obtener todos los contactos
     router.get('/contactos', auth, landingPageController.obtenerContactos);
 
+    //PEDIDOS 
+    router.post('/actualizarPedido', pedidoController.actualizarPedido)
 
+    router.get('/pedidosCliente', pedidoController.pedido);
 
-    /*AGENTE*/
+    router.post('/hacerPedido', pedidoController.hacerPedido)
+
+    router.post('/generarPDf', pedidoController.generarCotizacion)
     //PEDIDO
-    router.get('/pedidos/diaAgente', agenteController.pedidosDiaAgente);
+    router.get('/pedidos/diaAgente', pedidoController.pedidosDiaAgente);
 
-    router.get('/obtenerDatosCliente', clienteController.obtenerDatosCliente)
     //DETALLE PEDIDO
-    router.get('/pedidos/detalle/:pedidoId', agenteController.detallePedido);
-    //MIS CLIENTES
-    router.get('/misclientes/:idAgente', agenteController.misClientes)
+    router.get('/pedidos/detalle/:pedidoId', pedidoController.detallePedido);
 
-    router.get('/pedidosEnCaptura', agenteController.pedidoCaptura)
+    router.get('/pedidosEnCaptura', pedidoController.pedidoCaptura);
 
+    router.get('/pedidosEnCotizacion', pedidoController.pedidoCotizacion);
+
+    router.put('/procesarPedido', pedidoController.procesarPedido);
+
+    router.put('/cambiarEnCaptura', pedidoController.cambiarEnCaptura);
     return router;
 }
