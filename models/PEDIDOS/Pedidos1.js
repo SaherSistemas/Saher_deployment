@@ -62,6 +62,6 @@ const Pedido1 = sequelize.define('Pedido1', {
     timestamps: false,
 });
 
-Pedido1.belongsTo(articulos, {foreignKey:'artcdartn', as:'articulos'});
+Pedido1.belongsTo(articulos, { foreignKey: 'artcdartn', as: 'articulos' });
 
 module.exports = Pedido1;

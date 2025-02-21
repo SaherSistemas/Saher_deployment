@@ -120,9 +120,11 @@ exports.actualizarPedido = async (req, res, next) => {
 
         res.json({ mensaje: 'Pedido actualizado correctamente.' })
     } catch (error) {
+        console.error("Error al actualizar el pedido:", error);
         res.status(500).json({ error: error.message });
         next(error);
     }
+
 };
 
 
@@ -215,7 +217,7 @@ exports.hacerPedido = async (req, res, next) => {
             clicdclic: clicdclic,
             empcdempn: 20,
             cxcstatuc: 'C',
-            cxcfevend: { [Op.lte]: new Date(new Date() - 1000 * 24 * 60 * 60 * 1000) },//CAMBIAR A 10 DIAS 
+            cxcfevend: { [Op.lte]: new Date(new Date() - 10 * 24 * 60 * 60 * 1000) },
         },
         group: [
             'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
@@ -716,7 +718,12 @@ exports.procesarPedido = async (req, res, next) => {
                 pdifecped: now.toISOString().split('T')[0],
                 pdihorrec: now.toTimeString().split(' ')[0]
             },
-            { where: { pdicdpdin } }
+            {
+                where: {
+                    pdicdpdin,
+                    empcdempn: 20
+                }
+            }
         )
 
 
@@ -747,11 +754,137 @@ exports.cambiarEnCaptura = async (req, res, next) => {
             {
                 pdistatuc: 'E',
             },
-            { where: { pdicdpdin } }
+            {
+                where: {
+                    pdicdpdin,
+                    empcdempn: 20
+                }
+            }
         )
+
+        res.status(200).json({ mensaje: 'Estatus actualizado correctamente' });
+
     } catch (error) {
         console.error("Error al procesar el pedido:", error);
         res.status(500).json({ mensaje: 'Error al procesar el pedido.', error: error.message });
         next(error);
     }
+}
+
+exports.cambiarACotizacion = async (req, res, next) => {
+    const { pdicdpdin } = req.body;
+    try {
+
+        await Pedidos.update(
+            {
+                pdistatuc: 'Z',
+            },
+            {
+                where: {
+                    pdicdpdin,
+                    empcdempn: 20
+                }
+            }
+        )
+
+        res.status(200).json({ mensaje: 'Estatus actualizado correctamente' });
+
+    } catch (error) {
+        console.error("Error al procesar el pedido:", error);
+        res.status(500).json({ mensaje: 'Error al procesar el pedido.', error: error.message });
+        next(error);
+    }
+}
+
+exports.nuevoPedidoAgente = async (req, res, next) => {
+    const { empcdempn, pdifecped, pdihorrec, clicdclic, carrito } = req.body;
+
+    try {
+        const resultado = await numerador.findOne({
+            attributes: ['numfolcon'],
+            where: {
+                numcdnumn: 14,
+                empcdempn: 20,
+            },
+        });
+        let sigRegistro = 0;
+
+        if (resultado) {
+            const numfolcon = resultado.numfolcon;
+            const numEnter = parseInt(numfolcon, 10);
+            sigRegistro = numEnter + 1;
+        }
+        const nuevoPedido = {
+            empcdempn: empcdempn,
+            pdicdpdin: sigRegistro,
+            pdifecped: pdifecped,
+            pdifecfad: '0001-01-01',
+            pdistatuc: 'E',
+            pdifolpec: '',
+            pdipaquec: '',
+            pdinumguc: '',
+            pditelmac: 'N',
+            clicdclic: clicdclic,
+            pdihorrec: pdihorrec,
+            pdihorfac: '',
+            pdihorauc: '',
+            paqcdpaqn: 0,
+            pdiimguan: 0,
+            pdiimguin: 0,
+            pdiussurc: '',
+            pdihosurc: '',
+            pdiuschec: '',
+            pdihochec: '',
+            pdiusempc: '',
+            pdihoempc: '',
+        };
+
+        const pedidoEncabezado = await Pedidos.create(nuevoPedido);
+
+        const pedidos = carrito.map((item) => {
+            const { almexistn, articulo, precioGrupo, caducidad, grppreofn, grpfecofd, precioReal, cantidad } = item;
+            const { artcdartn, artdsartc, artdsgenc, artemporn } = articulo;
+
+
+            const pdidescrc = artdsartc.substring(0, 5);
+
+
+            const pdiaplofc = grppreofn !== '0.00' && grppreofn !== precioReal ? 'S' : 'N';
+
+
+            return {
+                empcdempn: 20,
+                pdicdpdin: sigRegistro,
+                artcdartn,
+                pdiaplofc,
+                pdidescrc,
+                pdicntpdn: cantidad,
+                pdicntsun: cantidad,
+                pdicntchn: 0,
+                pdiprevtn: precioReal,
+                pdipranon: precioReal,
+                pdiaplagc: '',
+                pdipasilc: '',
+                pdianaqun: 0,
+                pdiniveln: 0,
+                pdiposicn: 0,
+                pdipesokn: 0,
+            };
+        });
+
+        await Pedido1.bulkCreate(pedidos);
+
+
+        const ulti = sigRegistro
+        await numerador.update(
+            { numfolcon: ulti },
+            { where: { numcdnumn: 14, empcdempn: 20 } }
+        )
+        res.status(200).json({ mensaje: sigRegistro });
+    } catch (error) {
+        console.error("Error al procesar el pedido:", error);
+        res.status(500).json({ mensaje: 'Error al procesar el pedido.', error: error.message });
+        next(error);
+    }
+
 }
