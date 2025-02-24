@@ -96,8 +96,8 @@ exports.autenticarUsuario = async (req, res, next) => {
             const hoy = new Date();
             const unMesAtras = new Date(hoy);
             const tresMesesAtras = new Date();
-            unMesAtras.setMonth(unMesAtras.getMonth() - 1);//1 mes
-            tresMesesAtras.setMonth(tresMesesAtras.getMonth() - 3); // Restar 3 meses
+            unMesAtras.setMonth(unMesAtras.getMonth() - 100);//1 mes
+            tresMesesAtras.setMonth(tresMesesAtras.getMonth() - 300); // Restar 3 meses
 
             const [facturasRecientes, remisiones] = await Promise.all([
                 Factura.findOne({
@@ -137,7 +137,6 @@ exports.autenticarUsuario = async (req, res, next) => {
                     claveUsuario: clienteID
                 });
             } else if (fechaCliente < unMesAtras && !(facturasRecientes || remisiones)) {
-                //DESACTIVAR POR NO HABER REALIZADO NINGUN PEDIDO
                 await Usuarios.update(
                     { statusadmin: 'D' },
                     { where: { usuarioweb } }

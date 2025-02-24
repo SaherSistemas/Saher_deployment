@@ -252,7 +252,7 @@ exports.hacerPedido = async (req, res, next) => {
                 cxcnudocn: remision.remnufacn,
                 empcdempn: 20,
                 cxcstatuc: 'C',
-                cxcfevend: { [Op.lte]: new Date(new Date() - 1000 * 24 * 60 * 60 * 1000) }, //CAMBIAR A 10 DIAS 
+                cxcfevend: { [Op.lte]: new Date(new Date() - 10 * 24 * 60 * 60 * 1000) }, //CAMBIAR A 10 DIAS 
             },
             group: [
                 'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
@@ -709,9 +709,70 @@ exports.pedidoCotizacion = async (req, res, next) => {
     }
 };
 
-exports.procesarPedido = async (req, res, next) => {
-    const { pdicdpdin } = req.body;
+exports.procesarPedidoAgente = async (req, res, next) => {
+    const { clienteId, pdicdpdin } = req.body;
     try {
+        const facturasVencidas = await CuentasxCobrar.findAll({
+            attributes: [
+                'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
+                'cxcfedocd', 'cxcfeulpd', 'cxcporcon', 'cxcfevend', 'cxcfecand',
+                'cxcstatuc', 'agecdagen', 'cxcivapon', 'cxcpagvic', 'cxcfoldic', 'cxctocivn',
+                [Sequelize.fn('SUM', Sequelize.literal('cxcsubton + cxcimivan')), 'total_suma']
+            ],
+            where: {
+                clicdclic: clienteId,
+                empcdempn: 20,
+                cxcstatuc: 'C',
+                cxcfevend: { [Op.lte]: new Date(new Date() - 10 * 24 * 60 * 60 * 1000) },
+            },
+            group: [
+                'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
+                'cxcfedocd', 'cxcfeulpd', 'cxcporcon', 'cxcfevend', 'cxcfecand',
+                'cxcstatuc', 'agecdagen', 'cxcivapon', 'cxcpagvic', 'cxcfoldic', 'cxctocivn'
+            ]
+        });
+
+        if (facturasVencidas.length > 0) {
+            return res.status(403).json({
+                mensaje: 'No puedes realizar un pedido debido a que tienes facturas vencidas con más de 10 días vencidas.',
+            });
+        }
+
+        const remisiones = await Remision.findAll({
+            where: {
+                clicdclic: clienteId,
+                empcdempn: 20,
+                remstatuc: 'A'
+            }
+        });
+
+        for (const remision of remisiones) {
+            const facturasRem = await CuentasxCobrar.findAll({
+                attributes: [
+                    'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
+                    'cxcfedocd', 'cxcfeulpd', 'cxcporcon', 'cxcfevend', 'cxcfecand',
+                    'cxcstatuc', 'agecdagen', 'cxcivapon', 'cxcpagvic', 'cxcfoldic', 'cxctocivn',
+                    [Sequelize.fn('SUM', Sequelize.literal('cxcsubton + cxcimivan')), 'total_suma']
+                ],
+                where: {
+                    cxcnudocn: remision.remnufacn,
+                    empcdempn: 20,
+                    cxcstatuc: 'C',
+                    cxcfevend: { [Op.lte]: new Date(new Date() - 10 * 24 * 60 * 60 * 1000) }, //CAMBIAR A 10 DIAS 
+                },
+                group: [
+                    'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
+                    'cxcfedocd', 'cxcfeulpd', 'cxcporcon', 'cxcfevend', 'cxcfecand',
+                    'cxcstatuc', 'agecdagen', 'cxcivapon', 'cxcpagvic', 'cxcfoldic', 'cxctocivn'
+                ]
+            });
+
+            if (facturasRem.length > 0) {
+                return res.status(403).json({
+                    mensaje: 'No puedes realizar un pedido debido a que tienes remisiones vencidas con más de 10 días vencida.',
+                });
+            }
+        }
         await Pedidos.update(
             {
                 pdistatuc: 'C',

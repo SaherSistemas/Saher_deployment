@@ -9,7 +9,7 @@ const clienteController = require('../controllers/clientesController.js');
 const adminController = require('../controllers/administradoresController.js');
 const landingPageController = require('../controllers/landingPageController.js');
 const pedidoController = require('../controllers/pedidosController.js');
-const pagoController = require('../controllers/pagoControllers.js');
+const pagoController = require('../controllers/pagoCobranzaControllers.js');
 
 
 //proteger rutas
@@ -166,7 +166,7 @@ module.exports = function () {
 
     router.get('/pedidosEnCotizacion', pedidoController.pedidoCotizacion);
 
-    router.put('/procesarPedido', pedidoController.procesarPedido);
+    router.put('/procesarPedidoAgente', pedidoController.procesarPedidoAgente);
 
     router.patch('/cambiarEnCaptura', pedidoController.cambiarEnCaptura);
 
@@ -179,5 +179,11 @@ module.exports = function () {
     router.get('/bancos', pagoController.bancos)
 
     router.post('/registrarPago', pagoController.registrarPago)
+
+    router.get('/obtenerBlocRecibos', pagoController.blocksRecibos)
+
+    router.get('/obtenerRecibosDetalle', pagoController.obtenerRecibosDetalle);
+
+    router.delete('/eliminarRecibos', pagoController.eliminarRecibos)
     return router;
 }

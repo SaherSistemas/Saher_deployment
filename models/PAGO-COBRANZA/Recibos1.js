@@ -25,7 +25,7 @@ const Recibos1 = sequelize.define('Recibo1', {
         allowNull: true, //BANCOS
     },
     rboimdepn: {
-        type: DataTypes.DATEONLY,
+        type: DataTypes.DECIMAL(13, 2),
         allowNull: true, //0001-01-01
     },
 }, {

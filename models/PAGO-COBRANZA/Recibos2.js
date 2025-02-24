@@ -13,7 +13,7 @@ const Recibos2 = sequelize.define('Recibo2', {
         primaryKey: true,
     },
     rbonofacn: {
-        type: DataTypes.DECIMAL(4, 0), //NUMERO DE FACTURAS PAGADAS 
+        type: DataTypes.DECIMAL(4, 0),
         allowNull: false,
     },
     rbofactun: {
@@ -32,7 +32,7 @@ const Recibos2 = sequelize.define('Recibo2', {
         type: DataTypes.DECIMAL(13, 2),
         allowNull: true,
     },
-    rbofdigc: {
+    rbofdigic: {
         type: DataTypes.CHAR(20),
         allowNull: true,
     },
