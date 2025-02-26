@@ -775,7 +775,7 @@ exports.procesarPedidoAgente = async (req, res, next) => {
                 clicdclic: clienteId,
                 empcdempn: 20,
                 cxcstatuc: 'C',
-                cxcfevend: { [Op.lte]: new Date(new Date() - 10 * 24 * 60 * 60 * 1000) },
+                cxcfevend: { [Op.lte]: new Date(new Date() - 1000 * 24 * 60 * 60 * 1000) },
             },
             group: [
                 'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
@@ -810,7 +810,7 @@ exports.procesarPedidoAgente = async (req, res, next) => {
                     cxcnudocn: remision.remnufacn,
                     empcdempn: 20,
                     cxcstatuc: 'C',
-                    cxcfevend: { [Op.lte]: new Date(new Date() - 10 * 24 * 60 * 60 * 1000) }, //CAMBIAR A 10 DIAS 
+                    cxcfevend: { [Op.lte]: new Date(new Date() - 1000 * 24 * 60 * 60 * 1000) }, //CAMBIAR A 10 DIAS 
                 },
                 group: [
                     'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
