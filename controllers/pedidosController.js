@@ -1,5 +1,6 @@
 const now = new Date();
-const PDFDocument = require('pdfkit');
+const PDFDocument = require("pdfkit");
+const fs = require("fs");
 const { Sequelize, Op } = require('sequelize');
 const nodemailer = require('nodemailer');
 const Pedidos = require('../models/PEDIDOS/Pedidos')
@@ -127,70 +128,121 @@ exports.actualizarPedido = async (req, res, next) => {
 
 };
 
-
 exports.generarCotizacion = async (req, res, next) => {
-    const { carrito } = req.body;
-
+    const { carrito, clicdclic } = req.body;
     try {
+        const datoCliente = await Clientes.findOne({ where: { clicdclic } });
+
+        if (!datoCliente) {
+            return res.status(404).json({ error: "Cliente no encontrado" });
+        }
+        const clicdclic1 = datoCliente.dataValues.clicdclic.trim();
+        const clirazonc1 = datoCliente.dataValues.clirazonc.trim();
+        const cliemailc1 = datoCliente.dataValues.cliemailc.trim();
+        const clicallec = datoCliente.dataValues.clicallec.trim();
+        const clicvrfcc = datoCliente.dataValues.clicvrfcc.trim();
+        console.log(datoCliente)
         const doc = new PDFDocument({ margin: 40 });
 
-        // Configuración de la respuesta HTTP
-        res.setHeader('Content-Disposition', 'attachment; filename=pedido.pdf');
-        res.setHeader('Content-Type', 'application/pdf');
+
+        res.setHeader("Content-Disposition", "attachment; filename=cotizacion.pdf");
+        res.setHeader("Content-Type", "application/pdf");
         doc.pipe(res);
 
-        try {
-            // 🔹 Logo
-            doc.image('ic_Saher_sinBg.png', 40, 40, { width: 100 });
 
-            // 🔹 Título
-            doc.fillColor("#333")
-                .fontSize(18)
-                .text("Cotización de Pedido", { align: "center" })
-                .moveDown(1);
+        doc.image("ic_Saher_sinBg.png", 40, 40, { width: 150 });
+        doc.fillColor("#333")
+            .fontSize(20)
+            .text("Cotización de Pedido", 150, 50, { align: "right" })
+            .moveDown();
 
-            // 🔹 Información del Cliente
-            doc.fontSize(12)
-                .text(`Fecha: ${new Date().toLocaleDateString()}`, { align: "right" })
-                .moveDown()
-                .text("Detalles del Cliente:", { underline: true, bold: true })
-                .text("Nombre: Cliente Ejemplo")
-                .text("Dirección: Calle Falsa 123")
-                .text("Teléfono: 123-456-7890")
-                .moveDown();
+        // Información de la empresa
+        doc.fillColor("#444")
+            .fontSize(12)
+            .text("Empresa: Saher S.A. de C.V.", 150, doc.y)
+            .text("Dirección: Calle Ficticia 123, Ciudad, Estado", 150, doc.y)
+            .text("Teléfono: (123) 456-7890", 150, doc.y)
+            .text("Email: contacto@saher.com", 150, doc.y)
+            .moveDown();
 
-            // 🔹 Encabezado de la Tabla
-            const yInicial = doc.y;
-            doc.rect(40, yInicial, 520, 25).fill("#f2f2f2").stroke();
-            doc.fillColor("#000").fontSize(12).text("Producto", 50, yInicial + 7)
-                .text("Cantidad", 280, yInicial + 7, { width: 100, align: "right" })
-                .text("Precio", 390, yInicial + 7, { width: 100, align: "right" })
-                .text("Total", 500, yInicial + 7, { width: 100, align: "right" });
 
-            doc.moveDown();
+        doc.fillColor("#444")
+            .fontSize(12)
+            .text(`Fecha: ${new Date().toLocaleDateString()}`, { align: "right" })
+            .moveDown()
+            .font("Helvetica-Bold")
+            .text("Detalles del Cliente")
+            .font("Helvetica")
+            .text(`Clave Interna Cliente: ${clicdclic1 || "N/A"}`)
+            .text(`Nombre: ${clirazonc1 || "N/A"}`)
+            .text(`RFC: ${clicvrfcc || "N/A"}`)
+            .text(`Correo: ${cliemailc1 || "N/A"}`)
+            .text(`Dirrección: ${clicallec || "N/A"}`)
+            .moveDown();
 
-            // 🔹 Línea separadora
-            doc.strokeColor("#666").moveTo(40, doc.y).lineTo(560, doc.y).stroke().moveDown(0.5);
 
-            // 🔹 Contenido de la Tabla
-            carrito.forEach((item) => {
-                doc.fontSize(11)
-                    .text(item.articulo.artdsartc, 50, doc.y, { width: 220 })
-                    .text(item.cantidad.toString(), 280, doc.y, { width: 100, align: "right" })
-                    .text(`$${item.precioReal.toFixed(2)}`, 390, doc.y, { width: 100, align: "right" })
-                    .text(`$${(item.precioReal * item.cantidad).toFixed(2)}`, 500, doc.y, { width: 100, align: "right" })
-                    .moveDown(0.5);
-                doc.strokeColor("#666").moveTo(40, doc.y).lineTo(560, doc.y).stroke().moveDown();
-            });
+        const tableTop = doc.y;
+        const columnWidths = [220, 100, 100, 100];
+        const xStart = 40;
 
-            // 🔹 Total en Rojo y en Negrita
-            const total = carrito.reduce((sum, item) => sum + item.precioReal * item.cantidad, 0);
-            doc.fillColor("red").fontSize(14)
-                .text(`Total a Pagar: $${total.toFixed(2)}`, { align: "right", bold: true })
-                .moveDown(1);
-        } catch (error) {
-            console.error("Error al generar contenido del PDF:", error);
-        }
+
+        doc.rect(xStart, tableTop, 520, 25).fill("#eeeeee").stroke();
+        doc.fillColor("#000").fontSize(12)
+            .text("Producto", xStart + 10, tableTop + 7)
+            .text("Cantidad", xStart + columnWidths[0] + 10, tableTop + 7, { width: columnWidths[1], align: "right" })
+            .text("Precio", xStart + columnWidths[0] + columnWidths[1] + 10, tableTop + 7, { width: columnWidths[2], align: "right" })
+            .text("Total", xStart + columnWidths[0] + columnWidths[1] + columnWidths[2] + 10, tableTop + 7, { width: columnWidths[3], align: "right" });
+
+        doc.moveDown();
+
+
+        doc.strokeColor("#666").moveTo(xStart, doc.y).lineTo(xStart + 550, doc.y).stroke().moveDown(1);
+
+
+        const checkAndMoveToNextPage = (yPosition) => {
+            const pageHeight = doc.page.height - doc.page.margins.bottom;
+            const threshold = 30;
+
+            if (yPosition + threshold > pageHeight) {
+                doc.addPage();
+                return doc.y;
+            }
+            return yPosition;
+        };
+
+        // 🔹 Contenido de la Tabla
+        let total = 0;
+        let yPosition = doc.y;
+
+        carrito.forEach((item) => {
+            const subtotal = item.precioReal * item.cantidad;
+            total += subtotal;
+
+            // Verificar si el contenido cabe en la página
+            yPosition = checkAndMoveToNextPage(yPosition);
+
+            doc.fontSize(10);
+
+            // Mover ligeramente las letras del artículo hacia abajo
+            const articleYPosition = yPosition + 2; // Ajuste vertical para el nombre del artículo
+
+            doc.text(item.articulo.artdsartc, xStart + 10, articleYPosition, { width: columnWidths[0] })
+                .text(item.cantidad.toString(), xStart + columnWidths[0] + 10, yPosition, { width: columnWidths[1], align: "right" })
+                .text(`$${item.precioReal.toFixed(2)}`, xStart + columnWidths[0] + columnWidths[1] + 10, yPosition, { width: columnWidths[2], align: "right" })
+                .text(`$${subtotal.toFixed(2)}`, xStart + columnWidths[0] + columnWidths[1] + columnWidths[2] + 10, yPosition, { width: columnWidths[3], align: "right" });
+
+            // Ajustar la posición para la siguiente fila
+            yPosition = doc.y + 15;
+            doc.moveDown(0.5);
+            doc.strokeColor("#ddd").moveTo(xStart, yPosition).lineTo(xStart + 520, yPosition).stroke();
+        });
+
+        // 🔹 Total en una celda resaltada
+        doc.moveDown(1);
+        doc.fillColor("red").fontSize(12)
+            .text(`Subtotal: $${total.toFixed(2)}`, xStart + 430, doc.y + 7, { align: "left" })
+            .text(`Total IVA: $${total.toFixed(2)}`, xStart + 430, doc.y + 7, { align: "left" })
+            .text(`Total: $${total.toFixed(2)}`, xStart + 450, doc.y + 7, { align: "left" });
 
         doc.end();
     } catch (error) {
