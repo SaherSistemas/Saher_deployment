@@ -141,7 +141,6 @@ exports.generarCotizacion = async (req, res, next) => {
         const cliemailc1 = datoCliente.dataValues.cliemailc.trim();
         const clicallec = datoCliente.dataValues.clicallec.trim();
         const clicvrfcc = datoCliente.dataValues.clicvrfcc.trim();
-        console.log(datoCliente)
         const doc = new PDFDocument({ margin: 40 });
 
 
@@ -159,10 +158,10 @@ exports.generarCotizacion = async (req, res, next) => {
         // Información de la empresa
         doc.fillColor("#444")
             .fontSize(12)
-            .text("Empresa: Saher S.A. de C.V.", 150, doc.y)
-            .text("Dirección: Calle Ficticia 123, Ciudad, Estado", 150, doc.y)
-            .text("Teléfono: (123) 456-7890", 150, doc.y)
-            .text("Email: contacto@saher.com", 150, doc.y)
+            .text("Empresa: FARMACIAS SAHER DE SINALOA S DE RL DE CV", 200, doc.y)
+            .text("Dirección:  Calle Pastor Rouix 2314 int B Colonia Industrial El Palmito, Culiacán, Sinaloa", 200, doc.y)
+            .text("Teléfono:  6677644798", 200, doc.y)
+            .text("Email: farmacias.saher@gmail.com", 200, doc.y)
             .moveDown();
 
 
@@ -177,7 +176,7 @@ exports.generarCotizacion = async (req, res, next) => {
             .text(`Nombre: ${clirazonc1 || "N/A"}`)
             .text(`RFC: ${clicvrfcc || "N/A"}`)
             .text(`Correo: ${cliemailc1 || "N/A"}`)
-            .text(`Dirrección: ${clicallec || "N/A"}`)
+            .text(`Dirección: ${clicallec || "N/A"}`)
             .moveDown();
 
 
