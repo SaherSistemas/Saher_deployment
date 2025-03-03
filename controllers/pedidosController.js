@@ -143,7 +143,6 @@ exports.generarCotizacion = async (req, res, next) => {
         const clicvrfcc = datoCliente.dataValues.clicvrfcc.trim();
         const doc = new PDFDocument({ margin: 40 });
 
-
         res.setHeader("Content-Disposition", "attachment; filename=cotizacion.pdf");
         res.setHeader("Content-Type", "application/pdf");
         doc.pipe(res);
@@ -155,7 +154,6 @@ exports.generarCotizacion = async (req, res, next) => {
             .text("Cotización de Pedido", 150, 50, { align: "right" })
             .moveDown();
 
-        // Información de la empresa
         doc.fillColor("#444")
             .fontSize(12)
             .text("Empresa: FARMACIAS SAHER DE SINALOA S DE RL DE CV", 200, doc.y)
@@ -209,7 +207,6 @@ exports.generarCotizacion = async (req, res, next) => {
             return yPosition;
         };
 
-        // 🔹 Contenido de la Tabla
         let total = 0;
         let yPosition = doc.y;
 
@@ -217,31 +214,25 @@ exports.generarCotizacion = async (req, res, next) => {
             const subtotal = item.precioReal * item.cantidad;
             total += subtotal;
 
-            // Verificar si el contenido cabe en la página
             yPosition = checkAndMoveToNextPage(yPosition);
 
             doc.fontSize(10);
 
-            // Mover ligeramente las letras del artículo hacia abajo
-            const articleYPosition = yPosition + 2; // Ajuste vertical para el nombre del artículo
+            const articleYPosition = yPosition + 2;
 
             doc.text(item.articulo.artdsartc, xStart + 10, articleYPosition, { width: columnWidths[0] })
                 .text(item.cantidad.toString(), xStart + columnWidths[0] + 10, yPosition, { width: columnWidths[1], align: "right" })
                 .text(`$${item.precioReal.toFixed(2)}`, xStart + columnWidths[0] + columnWidths[1] + 10, yPosition, { width: columnWidths[2], align: "right" })
                 .text(`$${subtotal.toFixed(2)}`, xStart + columnWidths[0] + columnWidths[1] + columnWidths[2] + 10, yPosition, { width: columnWidths[3], align: "right" });
 
-            // Ajustar la posición para la siguiente fila
             yPosition = doc.y + 15;
             doc.moveDown(0.5);
             doc.strokeColor("#ddd").moveTo(xStart, yPosition).lineTo(xStart + 520, yPosition).stroke();
         });
 
-        // 🔹 Total en una celda resaltada
         doc.moveDown(1);
         doc.fillColor("red").fontSize(12)
-            .text(`Subtotal: $${total.toFixed(2)}`, xStart + 430, doc.y + 7, { align: "left" })
-            .text(`Total IVA: $${total.toFixed(2)}`, xStart + 430, doc.y + 7, { align: "left" })
-            .text(`Total: $${total.toFixed(2)}`, xStart + 450, doc.y + 7, { align: "left" });
+            .text(`Total sin IVA: $${total.toFixed(2)}`, xStart + 450, doc.y + 7, { align: "left" });
 
         doc.end();
     } catch (error) {
@@ -761,7 +752,8 @@ exports.pedidoCotizacion = async (req, res, next) => {
 };
 
 exports.procesarPedidoAgente = async (req, res, next) => {
-    const { clienteId, pdicdpdin } = req.body;
+    const { clienteId, pdicdpdin, today, hora } = req.body;
+
     try {
         const facturasVencidas = await CuentasxCobrar.findAll({
             attributes: [
@@ -824,11 +816,12 @@ exports.procesarPedidoAgente = async (req, res, next) => {
                 });
             }
         }
+
         await Pedidos.update(
             {
                 pdistatuc: 'C',
-                pdifecped: now.toISOString().split('T')[0],
-                pdihorrec: now.toTimeString().split(' ')[0]
+                pdifecped: today,
+                pdihorrec: hora
             },
             {
                 where: {
