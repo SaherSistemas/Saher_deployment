@@ -753,7 +753,7 @@ exports.pedidoCotizacion = async (req, res, next) => {
 
 exports.procesarPedidoAgente = async (req, res, next) => {
     const { clienteId, pdicdpdin, today, hora } = req.body;
-
+    console.log(clienteId)
     try {
         const facturasVencidas = await CuentasxCobrar.findAll({
             attributes: [
