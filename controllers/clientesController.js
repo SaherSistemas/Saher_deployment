@@ -100,7 +100,9 @@ exports.totalFacturas = async (req, res, next) => {
           clicdclic: claveUsuario,
           empcdempn: 20,
           remstatuc: 'A'
-        }
+        },
+        order: [['remfecred', 'DESC']],
+        limit: 20
       });
 
       if (remisiones.length === 0) {
