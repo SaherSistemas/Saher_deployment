@@ -128,6 +128,35 @@ exports.actualizarPedido = async (req, res, next) => {
 
 };
 
+exports.actualizarCotizacion = async (req, res, next) => {
+    const { pdicdpdin, carrito } = req.body;
+
+    await Pedido1.destroy({ where: { pdicdpdin } });
+
+    const nuevosArticulosPedido = carrito.map((item) => ({
+        empcdempn: 20,
+        pdicdpdin,
+        artcdartn: item.articulo.artcdartn,
+        pdiaplofc: 'N',
+        pdidescrc: item.articulo.artdsartc.substring(0, 5),
+        pdicntpdn: item.cantidad,
+        pdicntsun: item.cantidad,
+        pdicntchn: 0,
+        pdiprevtn: item.precioReal,
+        pdipranon: item.precioReal,
+        pdiaplagc: '',
+        pdipasilc: '',
+        pdianaqun: 0,
+        pdiniveln: 0,
+        pdiposicn: 0,
+        pdipesokn: 0,
+    }))
+    await Pedido1.bulkCreate(nuevosArticulosPedido)
+
+    res.json({ mensaje: 'Pedido actualizado correctamente.' })
+}
+
+
 exports.generarCotizacion = async (req, res, next) => {
     const { carrito, clicdclic } = req.body;
     try {

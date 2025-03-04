@@ -151,6 +151,8 @@ module.exports = function () {
     //PEDIDOS 
     router.post('/actualizarPedido', pedidoController.actualizarPedido)
 
+    router.post('/actualizarCotizacion', pedidoController.actualizarCotizacion)
+
     router.get('/pedidosCliente', pedidoController.pedido);
 
     router.post('/hacerPedido', pedidoController.hacerPedido)

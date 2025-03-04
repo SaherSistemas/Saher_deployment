@@ -92,66 +92,73 @@ exports.obtenerFacturasVencidas = async (req, res, next) => {
 exports.totalFacturas = async (req, res, next) => {
   try {
     const { claveUsuario } = req.params;
+    const { clinomcoc } = await Clientes.findByPk(claveUsuario)
+    const tieneAbarrote = clinomcoc.toLowerCase().includes("abarrote");
+    if (tieneAbarrote) {
+      const remisiones = await Remision.findAll({
+        where: {
+          clicdclic: claveUsuario,
+          empcdempn: 20,
+          remstatuc: 'A'
+        }
+      });
 
-    const facturas = await CuentasxCobrar.findAll({
-      attributes: [
-        'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
-        'cxcfedocd', 'cxcfeulpd', 'cxcporcon', 'cxcfevend', 'cxcfecand',
-        'cxcstatuc', 'agecdagen', 'cxcivapon', 'cxcpagvic', 'cxcfoldic', 'cxctocivn',
-        [Sequelize.fn('SUM', Sequelize.literal('cxcsubton + cxcimivan')), 'total_suma']
-      ],
-      where: {
-        clicdclic: claveUsuario,
-        empcdempn: 20,
-        cxcstatuc: 'C'
-      },
-      group: [
-        'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
-        'cxcfedocd', 'cxcfeulpd', 'cxcporcon', 'cxcfevend', 'cxcfecand',
-        'cxcstatuc', 'agecdagen', 'cxcivapon', 'cxcpagvic', 'cxcfoldic', 'cxctocivn'
-      ]
-    });
+      if (remisiones.length === 0) {
+        return res.status(200).json([]);
+      }
 
-    if (facturas.length > 0) {
-      for (const factura of facturas) {
-        const pagos = await CuentasxCobrar1.findAll({
-          attributes: [[Sequelize.fn('SUM', Sequelize.col('cxcimppan')), 'total_pagado']],
+      const remnufacns = remisiones.map(remision => remision.remnufacn);
+      let facturasEncontradas = [];
+
+      for (const remnufacn of remnufacns) {
+        const facturasRem = await CuentasxCobrar.findAll({
+          attributes: [
+            'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
+            'cxcfedocd', 'cxcfeulpd', 'cxcporcon', 'cxcfevend', 'cxcfecand',
+            'cxcstatuc', 'agecdagen', 'cxcivapon', 'cxcpagvic', 'cxcfoldic', 'cxctocivn',
+            [Sequelize.fn('SUM', Sequelize.literal('cxcsubton + cxcimivan')), 'total_suma']
+          ],
           where: {
-            clicdclic: factura.clicdclic,
-            empcdempn: factura.empcdempn,
-            cxcnudocn: factura.cxcnudocn,
-            empcdempn: 20
+            cxcnudocn: remnufacn,
+            empcdempn: 20,
+            cxcstatuc: 'C'
           },
-          raw: true
+          group: [
+            'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
+            'cxcfedocd', 'cxcfeulpd', 'cxcporcon', 'cxcfevend', 'cxcfecand',
+            'cxcstatuc', 'agecdagen', 'cxcivapon', 'cxcpagvic', 'cxcfoldic', 'cxctocivn'
+          ]
         });
 
-        const totalPagado = pagos[0]?.total_pagado || 0;
-        const totalFactura = Math.round(parseFloat(factura.dataValues.total_suma) * 100) / 100;
-        const totalDeuda = Math.round((totalFactura - totalPagado) * 100) / 100;
-
-        factura.dataValues.total_pagado = Math.round(totalPagado * 100) / 100;
-        factura.dataValues.total_deuda = totalDeuda;
+        if (facturasRem.length > 0) {
+          facturasEncontradas.push(...facturasRem);
+        }
       }
-      return res.status(200).json(facturas);
-    }
+      if (facturasEncontradas.length > 0) {
+        for (const factura of facturasEncontradas) {
+          const pagos = await CuentasxCobrar1.findAll({
+            attributes: [[Sequelize.fn('SUM', Sequelize.col('cxcimppan')), 'total_pagado']],
+            where: {
+              empcdempn: factura.empcdempn,
+              empcdempn: 20,
+              cxcnudocn: factura.cxcnudocn
+            },
+            raw: true
+          });
 
-    const remisiones = await Remision.findAll({
-      where: {
-        clicdclic: claveUsuario,
-        empcdempn: 20,
-        remstatuc: 'A'
+          const totalPagado = pagos[0]?.total_pagado || 0;
+          const totalFactura = Math.round(parseFloat(factura.dataValues.total_suma) * 100) / 100;
+          const totalDeuda = Math.round((totalFactura - totalPagado) * 100) / 100;
+
+          factura.dataValues.total_pagado = Math.round(totalPagado * 100) / 100;
+          factura.dataValues.total_deuda = totalDeuda;
+        }
       }
-    });
 
-    if (remisiones.length === 0) {
-      return res.status(200).json([]);
-    }
+      return res.status(200).json(facturasEncontradas);
 
-    const remnufacns = remisiones.map(remision => remision.remnufacn);
-    let facturasEncontradas = [];
-
-    for (const remnufacn of remnufacns) {
-      const facturasRem = await CuentasxCobrar.findAll({
+    } else {
+      const facturas = await CuentasxCobrar.findAll({
         attributes: [
           'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
           'cxcfedocd', 'cxcfeulpd', 'cxcporcon', 'cxcfevend', 'cxcfecand',
@@ -159,7 +166,7 @@ exports.totalFacturas = async (req, res, next) => {
           [Sequelize.fn('SUM', Sequelize.literal('cxcsubton + cxcimivan')), 'total_suma']
         ],
         where: {
-          cxcnudocn: remnufacn,
+          clicdclic: claveUsuario,
           empcdempn: 20,
           cxcstatuc: 'C'
         },
@@ -170,34 +177,29 @@ exports.totalFacturas = async (req, res, next) => {
         ]
       });
 
-      if (facturasRem.length > 0) {
-        facturasEncontradas.push(...facturasRem);
+      if (facturas.length > 0) {
+        for (const factura of facturas) {
+          const pagos = await CuentasxCobrar1.findAll({
+            attributes: [[Sequelize.fn('SUM', Sequelize.col('cxcimppan')), 'total_pagado']],
+            where: {
+              clicdclic: factura.clicdclic,
+              empcdempn: factura.empcdempn,
+              cxcnudocn: factura.cxcnudocn,
+              empcdempn: 20
+            },
+            raw: true
+          });
+
+          const totalPagado = pagos[0]?.total_pagado || 0;
+          const totalFactura = Math.round(parseFloat(factura.dataValues.total_suma) * 100) / 100;
+          const totalDeuda = Math.round((totalFactura - totalPagado) * 100) / 100;
+
+          factura.dataValues.total_pagado = Math.round(totalPagado * 100) / 100;
+          factura.dataValues.total_deuda = totalDeuda;
+        }
+        return res.status(200).json(facturas);
       }
     }
-
-    if (facturasEncontradas.length > 0) {
-      for (const factura of facturasEncontradas) {
-        const pagos = await CuentasxCobrar1.findAll({
-          attributes: [[Sequelize.fn('SUM', Sequelize.col('cxcimppan')), 'total_pagado']],
-          where: {
-            empcdempn: factura.empcdempn,
-            empcdempn: 20,
-            cxcnudocn: factura.cxcnudocn
-          },
-          raw: true
-        });
-
-        const totalPagado = pagos[0]?.total_pagado || 0;
-        const totalFactura = Math.round(parseFloat(factura.dataValues.total_suma) * 100) / 100;
-        const totalDeuda = Math.round((totalFactura - totalPagado) * 100) / 100;
-
-        factura.dataValues.total_pagado = Math.round(totalPagado * 100) / 100;
-        factura.dataValues.total_deuda = totalDeuda;
-      }
-    }
-
-    return res.status(200).json(facturasEncontradas);
-
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Ocurrió un error al obtener las facturas' });
