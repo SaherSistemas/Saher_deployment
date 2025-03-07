@@ -13,6 +13,8 @@ const iva = require('../models/ARTICULOS/Iva');
 const numerador = require('../models/ARTICULOS/Numerador');
 const Agentes = require('../models/AGENTES/Agentes');
 const Factura = require('../models/CLIENTES/Facturas');
+const Paqueterias = require('../models/PEDIDOS/Paqueterias')
+const Preciogpo = require('../models/CLIENTES/PrecioGpo.js');
 
 
 exports.actualizarPedido = async (req, res, next) => {
@@ -165,18 +167,21 @@ exports.generarCotizacion = async (req, res, next) => {
         if (!datoCliente) {
             return res.status(404).json({ error: "Cliente no encontrado" });
         }
+
+        // Datos del cliente
         const clicdclic1 = datoCliente.dataValues.clicdclic.trim();
         const clirazonc1 = datoCliente.dataValues.clirazonc.trim();
         const cliemailc1 = datoCliente.dataValues.cliemailc.trim();
         const clicallec = datoCliente.dataValues.clicallec.trim();
         const clicvrfcc = datoCliente.dataValues.clicvrfcc.trim();
-        const doc = new PDFDocument({ margin: 40 });
 
+        // Configurar PDF
+        const doc = new PDFDocument({ margin: 40 });
         res.setHeader("Content-Disposition", "attachment; filename=cotizacion.pdf");
         res.setHeader("Content-Type", "application/pdf");
         doc.pipe(res);
 
-
+        // Logo y encabezado
         doc.image("ic_Saher_sinBg.png", 40, 40, { width: 150 });
         doc.fillColor("#333")
             .fontSize(20)
@@ -186,12 +191,12 @@ exports.generarCotizacion = async (req, res, next) => {
         doc.fillColor("#444")
             .fontSize(12)
             .text("Empresa: FARMACIAS SAHER DE SINALOA S DE RL DE CV", 200, doc.y)
-            .text("Dirección:  Calle Pastor Rouix 2314 int B Colonia Industrial El Palmito, Culiacán, Sinaloa", 200, doc.y)
-            .text("Teléfono:  6677644798", 200, doc.y)
+            .text("Dirección: Calle Pastor Rouix 2314 int B, Colonia Industrial El Palmito, Culiacán, Sinaloa", 200, doc.y)
+            .text("Teléfono: 6677644798", 200, doc.y)
             .text("Email: farmacias.saher@gmail.com", 200, doc.y)
             .moveDown();
 
-
+        // Fecha y detalles del cliente
         doc.fillColor("#444")
             .fontSize(12)
             .text(`Fecha: ${new Date().toLocaleDateString()}`, { align: "right" })
@@ -206,62 +211,88 @@ exports.generarCotizacion = async (req, res, next) => {
             .text(`Dirección: ${clicallec || "N/A"}`)
             .moveDown();
 
-
-        const tableTop = doc.y;
-        const columnWidths = [220, 100, 100, 100];
+        // Configurar tabla
         const xStart = 40;
+        const columnWidths = [70, 200, 50, 80, 50]; // Ancho de columnas
+        let yPosition = doc.y;
+        const pageHeight = 720; // Altura máxima antes de agregar una nueva página
+        const marginTop = 50;
 
+        // Función para agregar encabezado de la tabla
+        const drawTableHeader = (y) => {
+            doc.rect(xStart, y, 550, 25).fill("#eeeeee").stroke();
+            doc.fillColor("#000").fontSize(12)
+                .text("Código", xStart + 10, y + 7)
+                .text("Producto", xStart + columnWidths[0] + 10, y + 7)
+                .text("Cantidad", xStart + columnWidths[0] + columnWidths[1] + 10, y + 7, { width: columnWidths[2], align: "right" })
+                .text("Precio", xStart + columnWidths[0] + columnWidths[1] + columnWidths[2] + 10, y + 7, { width: columnWidths[3], align: "right" })
+                .text("Total", xStart + columnWidths[0] + columnWidths[1] + columnWidths[2] + columnWidths[3] + columnWidths[4] + 10, y + 7, { width: columnWidths[5], align: "right" });
 
-        doc.rect(xStart, tableTop, 520, 25).fill("#eeeeee").stroke();
-        doc.fillColor("#000").fontSize(12)
-            .text("Producto", xStart + 10, tableTop + 7)
-            .text("Cantidad", xStart + columnWidths[0] + 10, tableTop + 7, { width: columnWidths[1], align: "right" })
-            .text("Precio", xStart + columnWidths[0] + columnWidths[1] + 10, tableTop + 7, { width: columnWidths[2], align: "right" })
-            .text("Total", xStart + columnWidths[0] + columnWidths[1] + columnWidths[2] + 10, tableTop + 7, { width: columnWidths[3], align: "right" });
-
-        doc.moveDown();
-
-
-        doc.strokeColor("#666").moveTo(xStart, doc.y).lineTo(xStart + 550, doc.y).stroke().moveDown(1);
-
-
-        const checkAndMoveToNextPage = (yPosition) => {
-            const pageHeight = doc.page.height - doc.page.margins.bottom;
-            const threshold = 30;
-
-            if (yPosition + threshold > pageHeight) {
-                doc.addPage();
-                return doc.y;
-            }
-            return yPosition;
+            return y + 30;
         };
 
-        let total = 0;
-        let yPosition = doc.y;
+        yPosition = drawTableHeader(yPosition);
 
-        carrito.forEach((item) => {
-            const subtotal = item.precioReal * item.cantidad;
-            total += subtotal;
+        let totalSinIVA = 0;
+        let totalIVA = 0;
 
-            yPosition = checkAndMoveToNextPage(yPosition);
+        for (const item of carrito) {
+            // Validaciones para evitar valores NaN o undefined
+            const codigo = item.articulo?.artcdartn || "N/A";
+            const nombreProducto = item.articulo?.artdsartc || "Producto sin nombre";
+            const cantidad = item.cantidad || 0;
+            const precioReal = item.precioReal || 0;
+            const subtotal = precioReal * cantidad;
 
-            doc.fontSize(10);
+            //CONSULTAR IVA 
+            const articuloInfo = await articulos.findOne({
+                where: { artcdartn: item.articulo.artcdartn },
+                attributes: ['ivacdivan']
+            });
 
-            const articleYPosition = yPosition + 2;
+            const ivaP = await iva.findByPk(articuloInfo.dataValues.ivacdivan);
 
-            doc.text(item.articulo.artdsartc, xStart + 10, articleYPosition, { width: columnWidths[0] })
-                .text(item.cantidad.toString(), xStart + columnWidths[0] + 10, yPosition, { width: columnWidths[1], align: "right" })
-                .text(`$${item.precioReal.toFixed(2)}`, xStart + columnWidths[0] + columnWidths[1] + 10, yPosition, { width: columnWidths[2], align: "right" })
-                .text(`$${subtotal.toFixed(2)}`, xStart + columnWidths[0] + columnWidths[1] + columnWidths[2] + 10, yPosition, { width: columnWidths[3], align: "right" });
+            const ivaPorciento = ivaP.ivaporcen;
 
-            yPosition = doc.y + 15;
+            //TERMINAR IVA
+            const IVA = subtotal * (ivaPorciento / 100);
+
+
+            totalSinIVA += subtotal;
+            totalIVA += IVA;
+
+            // Verificar si es necesario agregar una nueva página
+            if (yPosition + 20 > pageHeight) {
+                doc.addPage();
+                yPosition = marginTop;
+                yPosition = drawTableHeader(yPosition);
+            }
+
+            // Agregar fila de producto
+            doc.fontSize(10)
+                .text(codigo, xStart + 10, yPosition + 10, { width: columnWidths[0] })
+                .text(nombreProducto, xStart + columnWidths[0] + 10, yPosition + 10, { width: columnWidths[1] })
+                .text(cantidad.toString(), xStart + columnWidths[0] + columnWidths[1] + 10, yPosition + 10, { width: columnWidths[2], align: "right" })
+                .text(`$${precioReal.toFixed(2)}`, xStart + columnWidths[0] + columnWidths[1] + columnWidths[2] + 10, yPosition + 10, { width: columnWidths[3], align: "right" })
+                .text(`$${subtotal.toFixed(2)}`, xStart + columnWidths[0] + columnWidths[1] + columnWidths[2] + columnWidths[3], yPosition + 10, { width: columnWidths[5], align: "right" });
+
+            yPosition += 40; // Espacio entre filas
             doc.moveDown(0.5);
-            doc.strokeColor("#ddd").moveTo(xStart, yPosition).lineTo(xStart + 520, yPosition).stroke();
-        });
+            doc.strokeColor("#ddd").moveTo(xStart, yPosition).lineTo(xStart + 550, yPosition).stroke();
+        }
 
-        doc.moveDown(1);
+
+        // Agregar totales
+        yPosition += 1;
+        if (yPosition > pageHeight) {
+            doc.addPage();
+            yPosition = marginTop;
+        }
+
         doc.fillColor("red").fontSize(12)
-            .text(`Total sin IVA: $${total.toFixed(2)}`, xStart + 450, doc.y + 7, { align: "left" });
+            .text(`Subtotal: $${totalSinIVA.toFixed(2)}`, xStart + 400, yPosition, { align: "right" })
+            .text(`Total sin IVA: $${totalIVA.toFixed(2)}`, xStart + 400, yPosition + 15, { align: "right" })
+            .text(`Total: $${(totalSinIVA + totalIVA).toFixed(2)}`, xStart + 400, yPosition + 30, { align: "right" });
 
         doc.end();
     } catch (error) {
@@ -273,7 +304,7 @@ exports.generarCotizacion = async (req, res, next) => {
 };
 
 
-
+/*
 exports.hacerPedido = async (req, res, next) => {
     const { empcdempn, pdifecped, pdihorrec, clicdclic, carrito } = req.body;
 
@@ -569,7 +600,179 @@ exports.hacerPedido = async (req, res, next) => {
     }
     res.json({ mensaje: 'Pedido realizado y correo enviado.' });
 };
+*/
+/*
+exports.hacerPedido = async (req, res, next) => {
+    console.log(HACERPEDIDO)
+}*/
 
+exports.procesarPedidoCliente = async (req, res, next) => {
+    const { clienteId, pdicdpdin, pdifecped, pdihorrec, carrito } = req.body;
+    try {
+        const { clinomcoc } = await Clientes.findByPk(clienteId)
+        const tieneAbarrote = clinomcoc.toLowerCase().includes("abarrote");
+        if (tieneAbarrote) {
+            const remisiones = await Remision.findAll({
+                where: {
+                    clicdclic: clienteId,
+                    empcdempn: 20,
+                    remstatuc: 'A'
+                },
+                order: [['remfecred', 'DESC']],
+                limit: 20
+            })
+
+            for (const remision of remisiones) {
+                const facturasRem = await CuentasxCobrar.findAll({
+                    attributes: [
+                        'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
+                        'cxcfedocd', 'cxcfeulpd', 'cxcporcon', 'cxcfevend', 'cxcfecand',
+                        'cxcstatuc', 'agecdagen', 'cxcivapon', 'cxcpagvic', 'cxcfoldic', 'cxctocivn',
+                        [Sequelize.fn('SUM', Sequelize.literal('cxcsubton + cxcimivan')), 'total_suma']
+                    ],
+                    where: {
+                        cxcnudocn: remision.remnufacn,
+                        empcdempn: 20,
+                        cxcstatuc: 'C',
+                        cxcfevend: { [Op.lte]: new Date(new Date() - 1000 * 24 * 60 * 60 * 1000) }, //CAMBIAR A 10 DIAS 
+                    },
+                    group: [
+                        'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
+                        'cxcfedocd', 'cxcfeulpd', 'cxcporcon', 'cxcfevend', 'cxcfecand',
+                        'cxcstatuc', 'agecdagen', 'cxcivapon', 'cxcpagvic', 'cxcfoldic', 'cxctocivn'
+                    ]
+                });
+
+                if (facturasRem.length > 0) {
+                    return res.status(403).json({
+                        mensaje: 'No puedes realizar un pedido debido a que tienes remisiones vencidas con más de 10 días vencida.',
+                    });
+                }
+            }
+        } else {
+            const facturasVencidas = await CuentasxCobrar.findAll({
+                attributes: [
+                    'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
+                    'cxcfedocd', 'cxcfeulpd', 'cxcporcon', 'cxcfevend', 'cxcfecand',
+                    'cxcstatuc', 'agecdagen', 'cxcivapon', 'cxcpagvic', 'cxcfoldic', 'cxctocivn',
+                    [Sequelize.fn('SUM', Sequelize.literal('cxcsubton + cxcimivan')), 'total_suma']
+                ],
+                where: {
+                    clicdclic: clienteId,
+                    empcdempn: 20,
+                    cxcstatuc: 'C',
+                    cxcfevend: { [Op.lte]: new Date(new Date() - 1000 * 24 * 60 * 60 * 1000) },
+                },
+                group: [
+                    'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
+                    'cxcfedocd', 'cxcfeulpd', 'cxcporcon', 'cxcfevend', 'cxcfecand',
+                    'cxcstatuc', 'agecdagen', 'cxcivapon', 'cxcpagvic', 'cxcfoldic', 'cxctocivn'
+                ]
+            });
+
+            if (facturasVencidas.length > 0) {
+                return res.status(403).json({
+                    mensaje: 'No puedes realizar un pedido debido a que tienes facturas vencidas con más de 10 días vencidas.',
+                });
+            }
+        }
+        await Pedidos.update(
+            {
+                pdistatuc: 'Z',
+                pdifecped: pdifecped,
+                pdihorrec: pdihorrec,
+            },
+            {
+                where: {
+                    pdicdpdin,
+                    empcdempn: 20
+                }
+            }
+        )
+
+        const agente = await Clientes.findOne({
+            attributes: ['cliagecvn'],
+            where: {
+                clicdclic: clienteId,
+            }
+        })
+        const correoAgente = await Agentes.findOne({
+            attributes: ['ageplazac'],
+            where: {
+                agecdagen: agente.dataValues.cliagecvn,
+            }
+        })
+
+        const email = correoAgente.dataValues?.ageplazac;
+        if (email) {
+
+            const transporter = nodemailer.createTransport({
+                service: 'gmail',
+                auth: {
+                    user: 'farmacias.saher@gmail.com',
+                    pass: 'ahpa uwpg bkoa lulp',
+                },
+            });
+
+            const nomCliente = await Clientes.findOne({
+                attributes: ['clirazonc'],
+                where: {
+                    clicdclic: clienteId,
+                }
+            })
+
+            const correo = {
+                from: 'farmacias.saher@gmail.com',
+                to: `${email}`,
+                subject: `Nuevo Pedido Realizado: ${pdicdpdin}`,
+                html: `
+              <h1>Pedido Realizado</h1>
+              <p>Se ha realizado un nuevo pedido con el siguiente folio:</p>
+              <p><strong>Pedido: ${pdicdpdin}</strong></p>
+              <p><strong>Cliente:</strong> ${nomCliente.dataValues.clirazonc}</p>
+              <p><strong>Fecha:</strong> ${pdifecped}</p>
+          
+              <h3>Detalle del Pedido</h3>
+              <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse;">
+                <thead>
+                  <tr>
+                    <th>Código Artículo</th>
+                    <th>Descripción</th>
+                    <th>Cantidad</th>
+                    <th>Precio</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${carrito.map(item => {
+                    const { articulo, cantidad, precioReal } = item;
+                    return `
+                      <tr>
+                        <td>${articulo.artcdartn}</td>
+                        <td>${articulo.artdsartc}</td>
+                        <td>${cantidad}</td>
+                        <td>${precioReal}</td>
+                      </tr>
+                    `;
+                }).join('')}
+                </tbody>
+              </table>
+          
+              <p>Gracias por usar nuestro sistema.</p>
+            `,
+            };
+
+            await transporter.sendMail(correo);
+
+        } else {
+            console.log('No se encontró un email asociado para esta clave.');
+        }
+        res.json({ mensaje: 'Pedido procesado correctamente y correo enviado.' });
+    } catch (error) {
+        console.error("Error al procesar el pedido:", error);
+        res.status(500).json({ mensaje: 'Error al procesar el pedido.', error: error.message });
+        next(error);
+    }
+}
 
 
 exports.pedido = async (req, res, next) => {
@@ -683,7 +886,8 @@ exports.pedidosDiaAgente = async (req, res, next) => {
         // Añade la razón social al resultado
         const pedidosConRazonSocial = pedidos.map(pedido => ({
             ...pedido.toJSON(),
-            clirazonc: clienteMap[pedido.clicdclic]
+            clicdclic: pedido.clicdclic,
+            clirazonc: clienteMap[pedido.clicdclic],
         }));
 
         res.status(200).json(pedidosConRazonSocial);
@@ -692,8 +896,6 @@ exports.pedidosDiaAgente = async (req, res, next) => {
         res.status(500).json({ error: error.message });
     }
 };
-
-
 
 exports.detallePedido = async (req, res) => {
     try {
@@ -708,7 +910,7 @@ exports.detallePedido = async (req, res) => {
                 {
                     model: articulos,
                     as: 'articulos',
-                    attributes: ['artdsartc', 'ivacdivan'],
+                    attributes: ['artcdartn', 'artdsartc', 'ivacdivan'], // Asegurar que 'artcdartn' está incluido
                 },
             ],
         });
@@ -716,6 +918,15 @@ exports.detallePedido = async (req, res) => {
         if (detalles.length === 0) {
             return res.status(404).json({ message: 'No se encontraron detalles para este pedido.' });
         }
+
+        // Extraer los IDs de los artículos
+        const articulosIds = detalles.map(detalle => detalle.articulos?.artcdartn).filter(id => id);
+
+        const preciosActuales = await Preciogpo.findAll({
+            where: { artcdartn: articulosIds },
+            attributes
+        })
+        console.log(articulosIds);
         res.status(200).json(detalles);
     } catch (error) {
         console.error('Error al consultar detalles del pedido:', error);
@@ -781,45 +992,50 @@ exports.pedidoCotizacion = async (req, res, next) => {
 };
 
 exports.procesarPedidoAgente = async (req, res, next) => {
-    const { clienteId, pdicdpdin, today, hora } = req.body;
-    console.log(clienteId)
+    const { clienteId, pdicdpdin, today, hora, paqueteriaSeleccionada } = req.body;
     try {
-        const facturasVencidas = await CuentasxCobrar.findAll({
-            attributes: [
-                'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
-                'cxcfedocd', 'cxcfeulpd', 'cxcporcon', 'cxcfevend', 'cxcfecand',
-                'cxcstatuc', 'agecdagen', 'cxcivapon', 'cxcpagvic', 'cxcfoldic', 'cxctocivn',
-                [Sequelize.fn('SUM', Sequelize.literal('cxcsubton + cxcimivan')), 'total_suma']
-            ],
-            where: {
-                clicdclic: clienteId,
-                empcdempn: 20,
-                cxcstatuc: 'C',
-                cxcfevend: { [Op.lte]: new Date(new Date() - 1000 * 24 * 60 * 60 * 1000) },
-            },
-            group: [
-                'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
-                'cxcfedocd', 'cxcfeulpd', 'cxcporcon', 'cxcfevend', 'cxcfecand',
-                'cxcstatuc', 'agecdagen', 'cxcivapon', 'cxcpagvic', 'cxcfoldic', 'cxctocivn'
-            ]
-        });
+        const { clinomcoc } = await Clientes.findByPk(clienteId)
+        const tieneAbarrote = clinomcoc.toLowerCase().includes("abarrote");
+        if (tieneAbarrote) {
+            const remisiones = await Remision.findAll({
+                where: {
+                    clicdclic: clienteId,
+                    empcdempn: 20,
+                    remstatuc: 'A'
+                },
+                order: [['remfecred', 'DESC']],
+                limit: 20
+            })
 
-        if (facturasVencidas.length > 0) {
-            return res.status(403).json({
-                mensaje: 'No puedes realizar un pedido debido a que tienes facturas vencidas con más de 10 días vencidas.',
-            });
-        }
+            for (const remision of remisiones) {
+                const facturasRem = await CuentasxCobrar.findAll({
+                    attributes: [
+                        'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
+                        'cxcfedocd', 'cxcfeulpd', 'cxcporcon', 'cxcfevend', 'cxcfecand',
+                        'cxcstatuc', 'agecdagen', 'cxcivapon', 'cxcpagvic', 'cxcfoldic', 'cxctocivn',
+                        [Sequelize.fn('SUM', Sequelize.literal('cxcsubton + cxcimivan')), 'total_suma']
+                    ],
+                    where: {
+                        cxcnudocn: remision.remnufacn,
+                        empcdempn: 20,
+                        cxcstatuc: 'C',
+                        cxcfevend: { [Op.lte]: new Date(new Date() - 1000 * 24 * 60 * 60 * 1000) }, //CAMBIAR A 10 DIAS 
+                    },
+                    group: [
+                        'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
+                        'cxcfedocd', 'cxcfeulpd', 'cxcporcon', 'cxcfevend', 'cxcfecand',
+                        'cxcstatuc', 'agecdagen', 'cxcivapon', 'cxcpagvic', 'cxcfoldic', 'cxctocivn'
+                    ]
+                });
 
-        const remisiones = await Remision.findAll({
-            where: {
-                clicdclic: clienteId,
-                empcdempn: 20,
-                remstatuc: 'A'
+                if (facturasRem.length > 0) {
+                    return res.status(403).json({
+                        mensaje: 'No puedes realizar un pedido debido a que tienes remisiones vencidas con más de 10 días vencida.',
+                    });
+                }
             }
-        });
-
-        for (const remision of remisiones) {
-            const facturasRem = await CuentasxCobrar.findAll({
+        } else {
+            const facturasVencidas = await CuentasxCobrar.findAll({
                 attributes: [
                     'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
                     'cxcfedocd', 'cxcfeulpd', 'cxcporcon', 'cxcfevend', 'cxcfecand',
@@ -827,10 +1043,10 @@ exports.procesarPedidoAgente = async (req, res, next) => {
                     [Sequelize.fn('SUM', Sequelize.literal('cxcsubton + cxcimivan')), 'total_suma']
                 ],
                 where: {
-                    cxcnudocn: remision.remnufacn,
+                    clicdclic: clienteId,
                     empcdempn: 20,
                     cxcstatuc: 'C',
-                    cxcfevend: { [Op.lte]: new Date(new Date() - 1000 * 24 * 60 * 60 * 1000) }, //CAMBIAR A 10 DIAS 
+                    cxcfevend: { [Op.lte]: new Date(new Date() - 1000 * 24 * 60 * 60 * 1000) },
                 },
                 group: [
                     'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
@@ -839,9 +1055,9 @@ exports.procesarPedidoAgente = async (req, res, next) => {
                 ]
             });
 
-            if (facturasRem.length > 0) {
+            if (facturasVencidas.length > 0) {
                 return res.status(403).json({
-                    mensaje: 'No puedes realizar un pedido debido a que tienes remisiones vencidas con más de 10 días vencida.',
+                    mensaje: 'No puedes realizar un pedido debido a que tienes facturas vencidas con más de 10 días vencidas.',
                 });
             }
         }
@@ -850,7 +1066,8 @@ exports.procesarPedidoAgente = async (req, res, next) => {
             {
                 pdistatuc: 'C',
                 pdifecped: today,
-                pdihorrec: hora
+                pdihorrec: hora,
+                paqcdpaqn: paqueteriaSeleccionada
             },
             {
                 where: {
@@ -1021,4 +1238,113 @@ exports.nuevoPedidoAgente = async (req, res, next) => {
         next(error);
     }
 
+}
+
+exports.nuevoPedidoCliente = async (req, res, next) => {
+    const { empcdempn, pdifecped, pdihorrec, clicdclic, carrito } = req.body;
+
+    try {
+        const resultado = await numerador.findOne({
+            attributes: ['numfolcon'],
+            where: {
+                numcdnumn: 14,
+                empcdempn: 20,
+            },
+        });
+        let sigRegistro = 0;
+
+        if (resultado) {
+            const numfolcon = resultado.numfolcon;
+            const numEnter = parseInt(numfolcon, 10);
+            sigRegistro = numEnter + 1;
+        }
+        const nuevoPedido = {
+            empcdempn: empcdempn,
+            pdicdpdin: sigRegistro,
+            pdifecped: pdifecped,
+            pdifecfad: '0001-01-01',
+            pdistatuc: 'E',
+            pdifolpec: '',
+            pdipaquec: '',
+            pdinumguc: '',
+            pditelmac: 'T',
+            clicdclic: clicdclic,
+            pdihorrec: pdihorrec,
+            pdihorfac: '',
+            pdihorauc: '',
+            paqcdpaqn: 0,
+            pdiimguan: 0,
+            pdiimguin: 0,
+            pdiussurc: '',
+            pdihosurc: '',
+            pdiuschec: '',
+            pdihochec: '',
+            pdiusempc: '',
+            pdihoempc: '',
+        };
+
+        const pedidoEncabezado = await Pedidos.create(nuevoPedido);
+
+        const pedidos = carrito.map((item) => {
+            const { almexistn, articulo, precioGrupo, caducidad, grppreofn, grpfecofd, precioReal, cantidad } = item;
+            const { artcdartn, artdsartc, artdsgenc, artemporn } = articulo;
+
+
+            const pdidescrc = artdsartc.substring(0, 5);
+
+
+            const pdiaplofc = grppreofn !== '0.00' && grppreofn !== precioReal ? 'S' : 'N';
+
+
+            return {
+                empcdempn: 20,
+                pdicdpdin: sigRegistro,
+                artcdartn,
+                pdiaplofc,
+                pdidescrc,
+                pdicntpdn: cantidad,
+                pdicntsun: cantidad,
+                pdicntchn: 0,
+                pdiprevtn: precioReal,
+                pdipranon: precioReal,
+                pdiaplagc: '',
+                pdipasilc: '',
+                pdianaqun: 0,
+                pdiniveln: 0,
+                pdiposicn: 0,
+                pdipesokn: 0,
+            };
+        });
+
+        await Pedido1.bulkCreate(pedidos);
+
+
+        const ulti = sigRegistro
+        await numerador.update(
+            { numfolcon: ulti },
+            { where: { numcdnumn: 14, empcdempn: 20 } }
+        )
+        res.status(200).json({ mensaje: sigRegistro });
+    } catch (error) {
+        console.error("Error al procesar el pedido:", error);
+        res.status(500).json({ mensaje: 'Error al procesar el pedido.', error: error.message });
+        next(error);
+    }
+
+}
+
+
+exports.paqueterias = async (req, res, next) => {
+    const paqueterias = await Paqueterias.findAll({
+        attributes: ['paqcdpaqn', 'paqnomcoc'],
+        where: {
+            paqstatuc: 'A'
+        }
+    });
+    const paqueteriaLimpia = paqueterias.map(paquete => ({
+        paqcdpaqn: paquete.paqcdpaqn,
+        paqnomcoc: paquete.paqnomcoc.toUpperCase()
+    }))
+
+    res.status(200).json(paqueteriaLimpia);
 }

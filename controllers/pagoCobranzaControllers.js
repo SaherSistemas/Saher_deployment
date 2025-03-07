@@ -133,7 +133,6 @@ exports.blocksRecibos = async (req, res) => {
                 empcdempn: 20
             },
             order: [
-                ["blostatuc", "DESC"],
                 ["blofecend", "DESC"]
             ]
         });
@@ -157,7 +156,6 @@ exports.blocksRecibos = async (req, res) => {
 exports.obtenerRecibosDetalle = async (req, res) => {
     try {
         const { folioIni } = req.query;
-
         if (!folioIni) {
             return res.status(400).json({ message: "Se requiere folioIni" });
         }
@@ -169,7 +167,6 @@ exports.obtenerRecibosDetalle = async (req, res) => {
                 empcdempn: 20
             }
         });
-
         if (!blorecibo) {
             return res.json([]);
         }
@@ -183,11 +180,7 @@ exports.obtenerRecibosDetalle = async (req, res) => {
                 },
                 empcdempn: 20
             },
-            order: [
-                ["rbocdrbon", "ASC"]
-            ]
         });
-        //console.log(recibos)
         res.json(recibos.length > 0 ? recibos : []);
     } catch (error) {
         console.error("Error al obtener recibos", error);

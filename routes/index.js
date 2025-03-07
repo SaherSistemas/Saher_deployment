@@ -155,9 +155,13 @@ module.exports = function () {
 
     router.get('/pedidosCliente', pedidoController.pedido);
 
-    router.post('/hacerPedido', pedidoController.hacerPedido)
+    router.post('/procesarPedidoCliente', pedidoController.procesarPedidoCliente)
+
+    router.post('/nuevoPedidoCliente', pedidoController.nuevoPedidoCliente);
 
     router.post('/generarPDf', pedidoController.generarCotizacion)
+
+    router.get('/paqueterias', pedidoController.paqueterias);
     //PEDIDO
     router.get('/pedidos/diaAgente', pedidoController.pedidosDiaAgente);
 

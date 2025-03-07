@@ -15,6 +15,7 @@ const Pedidos = sequelize.define('Pedido', {
   pdifecped: {
     type: DataTypes.DATEONLY,
     allowNull: true,
+    timezone: false,
   },
   pdifecfad: {
     type: DataTypes.DATEONLY,
