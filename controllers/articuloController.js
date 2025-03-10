@@ -323,7 +323,8 @@ exports.obtenerDatosPorGrupoParaPedido = async (req, res, next) => {
       ...searchTerm && {
         [Op.or]: [
           { artdsartc: { [Op.iLike]: `%${searchTerm}%` } },
-          { artdsgenc: { [Op.iLike]: `%${searchTerm}%` } }
+          { artdsgenc: { [Op.iLike]: `%${searchTerm}%` } },
+          { artcodbac: { [Op.iLike]: `%${searchTerm}%` } }
         ]
       }
     };
@@ -455,7 +456,8 @@ exports.obtenerDatosPorGrupo = async (req, res) => {
       ...searchTerm && {
         [Op.or]: [
           { artdsartc: { [Op.iLike]: `%${searchTerm}%` } },
-          { artdsgenc: { [Op.iLike]: `%${searchTerm}%` } }
+          { artdsgenc: { [Op.iLike]: `%${searchTerm}%` } },
+          { artcodbac: { [Op.iLike]: `%${searchTerm}%` } }
         ]
       },
       artstatuc: 'A'
