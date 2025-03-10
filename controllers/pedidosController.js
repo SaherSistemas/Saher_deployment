@@ -1,6 +1,4 @@
-const now = new Date();
 const PDFDocument = require("pdfkit");
-const fs = require("fs");
 const { Sequelize, Op } = require('sequelize');
 const nodemailer = require('nodemailer');
 const Pedidos = require('../models/PEDIDOS/Pedidos')
@@ -244,20 +242,17 @@ exports.generarCotizacion = async (req, res, next) => {
             const precioReal = item.precioReal || 0;
             const subtotal = precioReal * cantidad;
 
-            //CONSULTAR IVA 
+            // CONSULTAR IVA 
             const articuloInfo = await articulos.findOne({
                 where: { artcdartn: item.articulo.artcdartn },
                 attributes: ['ivacdivan']
             });
 
             const ivaP = await iva.findByPk(articuloInfo.dataValues.ivacdivan);
-
             const ivaPorciento = ivaP.ivaporcen;
 
-            //TERMINAR IVA
+            // Calcular IVA
             const IVA = subtotal * (ivaPorciento / 100);
-
-
             totalSinIVA += subtotal;
             totalIVA += IVA;
 
@@ -268,6 +263,13 @@ exports.generarCotizacion = async (req, res, next) => {
                 yPosition = drawTableHeader(yPosition);
             }
 
+            // Cambiar color a naranja si tiene IVA
+            if (ivaPorciento > 0) {
+                doc.fillColor("orange"); // Color naranja para productos con IVA
+            } else {
+                doc.fillColor("black"); // Color negro para productos sin IVA
+            }
+
             // Agregar fila de producto
             doc.fontSize(10)
                 .text(codigo, xStart + 10, yPosition + 10, { width: columnWidths[0] })
@@ -276,9 +278,19 @@ exports.generarCotizacion = async (req, res, next) => {
                 .text(`$${precioReal.toFixed(2)}`, xStart + columnWidths[0] + columnWidths[1] + columnWidths[2] + 10, yPosition + 10, { width: columnWidths[3], align: "right" })
                 .text(`$${subtotal.toFixed(2)}`, xStart + columnWidths[0] + columnWidths[1] + columnWidths[2] + columnWidths[3], yPosition + 10, { width: columnWidths[5], align: "right" });
 
+            // Dibujar línea separadora en naranja si tiene IVA
+            if (ivaPorciento > 0) {
+                doc.strokeColor("green"); // Línea naranja para productos con IVA
+            } else {
+                doc.strokeColor("#165bc6"); // Línea azul para productos sin IVA
+            }
+
+            // Restaurar color negro para los siguientes productos
+            doc.fillColor("black");
+            doc.strokeColor("#ddd");
             yPosition += 40; // Espacio entre filas
             doc.moveDown(0.5);
-            doc.strokeColor("#ddd").moveTo(xStart, yPosition).lineTo(xStart + 550, yPosition).stroke();
+            doc.moveTo(xStart, yPosition).lineTo(xStart + 550, yPosition).stroke();
         }
 
 
@@ -303,308 +315,6 @@ exports.generarCotizacion = async (req, res, next) => {
     }
 };
 
-
-/*
-exports.hacerPedido = async (req, res, next) => {
-    const { empcdempn, pdifecped, pdihorrec, clicdclic, carrito } = req.body;
-
-    const facturasVencidas = await CuentasxCobrar.findAll({
-        attributes: [
-            'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
-            'cxcfedocd', 'cxcfeulpd', 'cxcporcon', 'cxcfevend', 'cxcfecand',
-            'cxcstatuc', 'agecdagen', 'cxcivapon', 'cxcpagvic', 'cxcfoldic', 'cxctocivn',
-            [Sequelize.fn('SUM', Sequelize.literal('cxcsubton + cxcimivan')), 'total_suma']
-        ],
-        where: {
-            clicdclic: clicdclic,
-            empcdempn: 20,
-            cxcstatuc: 'C',
-            cxcfevend: { [Op.lte]: new Date(new Date() - 10 * 24 * 60 * 60 * 1000) },
-        },
-        group: [
-            'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
-            'cxcfedocd', 'cxcfeulpd', 'cxcporcon', 'cxcfevend', 'cxcfecand',
-            'cxcstatuc', 'agecdagen', 'cxcivapon', 'cxcpagvic', 'cxcfoldic', 'cxctocivn'
-        ]
-    });
-
-    if (facturasVencidas.length > 0) {
-        return res.status(403).json({
-            mensaje: 'No puedes realizar un pedido debido a que tienes facturas vencidas con más de 10 días vencidas.',
-        });
-    }
-
-    const remisiones = await Remision.findAll({
-        where: {
-            clicdclic,
-            empcdempn: 20,
-            remstatuc: 'A'
-        }
-    });
-
-    for (const remision of remisiones) {
-        const facturasRem = await CuentasxCobrar.findAll({
-            attributes: [
-                'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
-                'cxcfedocd', 'cxcfeulpd', 'cxcporcon', 'cxcfevend', 'cxcfecand',
-                'cxcstatuc', 'agecdagen', 'cxcivapon', 'cxcpagvic', 'cxcfoldic', 'cxctocivn',
-                [Sequelize.fn('SUM', Sequelize.literal('cxcsubton + cxcimivan')), 'total_suma']
-            ],
-            where: {
-                cxcnudocn: remision.remnufacn,
-                empcdempn: 20,
-                cxcstatuc: 'C',
-                cxcfevend: { [Op.lte]: new Date(new Date() - 10 * 24 * 60 * 60 * 1000) }, //CAMBIAR A 10 DIAS 
-            },
-            group: [
-                'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
-                'cxcfedocd', 'cxcfeulpd', 'cxcporcon', 'cxcfevend', 'cxcfecand',
-                'cxcstatuc', 'agecdagen', 'cxcivapon', 'cxcpagvic', 'cxcfoldic', 'cxctocivn'
-            ]
-        });
-
-        if (facturasRem.length > 0) {
-            return res.status(403).json({
-                mensaje: 'No puedes realizar un pedido debido a que tienes remisiones vencidas con más de 10 días vencida.',
-            });
-        }
-    }
-
-    // Verificar saldo del cliente
-    const saldoCliente = await Clientes.findByPk(clicdclic.trim(), {
-        attributes: ['clilimcrn', 'clisaldon']
-    });
-    const saldoDisponible = saldoCliente.dataValues.clilimcrn - saldoCliente.dataValues.clisaldon;
-    // Calcular total de pedidos pendientes de facturar
-    const pedidosPendientesDeFacturar = await Pedidos.findAll({
-        where: {
-            clicdclic,
-            pdistatuc: { [Op.in]: ['C', 'R', 'P', 'Z'] },
-            empcdempn: 20
-        },
-        attributes: ['pdicdpdin']
-    });
-
-    let totalPedidosPendientes = 0;
-    if (pedidosPendientesDeFacturar && pedidosPendientesDeFacturar.length > 0) {
-        for (const pedido of pedidosPendientesDeFacturar) {
-            const pdicdpdin = pedido.dataValues.pdicdpdin;
-
-            const articulosPedido = await Pedido1.findAll({
-                where: {
-                    pdicdpdin,
-                    empcdempn: 20
-                }
-            });
-
-            for (const articulo of articulosPedido) {
-                const precioArticulo = articulo.dataValues.pdiprevtn;
-                const cantidad = articulo.dataValues.pdicntpdn;
-
-                const articuloInfo = await articulos.findOne({
-                    where: { artcdartn: articulo.dataValues.artcdartn },
-                    attributes: ['ivacdivan']
-                });
-
-                const ivaP = await iva.findByPk(articuloInfo.dataValues.ivacdivan);
-                const ivaPorciento = ivaP.ivaporcen;
-
-                totalPedidosPendientes += (precioArticulo * cantidad) * (1 + ivaPorciento / 100);
-            }
-        }
-    }
-
-    // Calcular total del nuevo pedido
-    let totalNuevoPedido = 0;
-    for (const item of carrito) {
-        const { cantidad, precioReal, articulo } = item;
-        const { artcdartn } = articulo;
-
-        const articuloInfo = await articulos.findOne({
-            where: { artcdartn },
-            attributes: ['ivacdivan']
-        });
-
-        const ivaP = await iva.findByPk(articuloInfo.dataValues.ivacdivan);
-        const ivaPorciento = ivaP.ivaporcen;
-
-        totalNuevoPedido += (precioReal * cantidad) * (1 + ivaPorciento / 100);
-    }
-
-    const totalPedidoCliente = totalPedidosPendientes + totalNuevoPedido;
-    if (totalPedidoCliente > saldoDisponible) {
-        return res.status(403).json({
-            mensaje: 'El total del pedido nuevo y los pendientes excede el saldo disponible.',
-        });
-    }
-
-
-    const resultado = await numerador.findOne({
-        attributes: ['numfolcon'],
-        where: {
-            numcdnumn: 14,
-            empcdempn: 20,
-        },
-    });
-    let sigRegistro = 0;
-
-    if (resultado) {
-        const numfolcon = resultado.numfolcon;
-        const numEnter = parseInt(numfolcon, 10);
-        sigRegistro = numEnter + 1;
-    }
-    const nuevoPedido = {
-        empcdempn: empcdempn,
-        pdicdpdin: sigRegistro,
-        pdifecped: pdifecped,
-        pdifecfad: '0001-01-01',
-        pdistatuc: 'Z',
-        pdifolpec: '',
-        pdipaquec: '',
-        pdinumguc: '',
-        pditelmac: 'T',
-        clicdclic: clicdclic,
-        pdihorrec: pdihorrec,
-        pdihorfac: '',
-        pdihorauc: '',
-        paqcdpaqn: 0,
-        pdiimguan: 0,
-        pdiimguin: 0,
-        pdiussurc: '',
-        pdihosurc: '',
-        pdiuschec: '',
-        pdihochec: '',
-        pdiusempc: '',
-        pdihoempc: '',
-    };
-
-
-    const pedidoEncabezado = await Pedidos.create(nuevoPedido);
-
-
-
-    const pedidos = carrito.map((item) => {
-        const { almexistn, articulo, precioGrupo, caducidad, grppreofn, grpfecofd, precioReal, cantidad } = item;
-        const { artcdartn, artdsartc, artdsgenc, artemporn } = articulo;
-
-
-        const pdidescrc = artdsartc.substring(0, 5);
-
-
-        const pdiaplofc = grppreofn !== '0.00' && grppreofn !== precioReal ? 'S' : 'N';
-
-
-        return {
-            empcdempn: 20,
-            pdicdpdin: sigRegistro,
-            artcdartn,
-            pdiaplofc,
-            pdidescrc,
-            pdicntpdn: cantidad,
-            pdicntsun: cantidad,
-            pdicntchn: 0,
-            pdiprevtn: precioReal,
-            pdipranon: precioReal,
-            pdiaplagc: '',
-            pdipasilc: '',
-            pdianaqun: 0,
-            pdiniveln: 0,
-            pdiposicn: 0,
-            pdipesokn: 0,
-        };
-    });
-
-    await Pedido1.bulkCreate(pedidos);
-
-
-    const ulti = sigRegistro
-    await numerador.update(
-        { numfolcon: ulti },
-        { where: { numcdnumn: 14, empcdempn: 20 } }
-    )
-    const agente = await Clientes.findOne({
-        attributes: ['cliagecvn'],
-        where: {
-            clicdclic: clicdclic,
-        }
-    })
-    const correoAgente = await Agentes.findOne({
-        attributes: ['ageplazac'],
-        where: {
-            agecdagen: agente.dataValues.cliagecvn,
-        }
-    })
-
-    const email = correoAgente.dataValues?.ageplazac;
-    if (email) {
-
-        const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-                user: 'farmacias.saher@gmail.com',
-                pass: 'ahpa uwpg bkoa lulp',
-            },
-        });
-
-        const nomCliente = await Clientes.findOne({
-            attributes: ['clirazonc'],
-            where: {
-                clicdclic: clicdclic,
-            }
-        })
-
-        const correo = {
-            from: 'farmacias.saher@gmail.com',
-            to: `${email}`,
-            subject: `Nuevo Pedido Realizado: ${sigRegistro}`,
-            html: `
-          <h1>Pedido Realizado</h1>
-          <p>Se ha realizado un nuevo pedido con el siguiente folio:</p>
-          <p><strong>Pedido: ${sigRegistro}</strong></p>
-          <p><strong>Cliente:</strong> ${nomCliente.dataValues.clirazonc}</p>
-          <p><strong>Fecha:</strong> ${pdifecped}</p>
-      
-          <h3>Detalle del Pedido</h3>
-          <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse;">
-            <thead>
-              <tr>
-                <th>Código Artículo</th>
-                <th>Descripción</th>
-                <th>Cantidad</th>
-                <th>Precio</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${carrito.map(item => {
-                const { articulo, cantidad, precioReal } = item;
-                return `
-                  <tr>
-                    <td>${articulo.artcdartn}</td>
-                    <td>${articulo.artdsartc}</td>
-                    <td>${cantidad}</td>
-                    <td>${precioReal}</td>
-                  </tr>
-                `;
-            }).join('')}
-            </tbody>
-          </table>
-      
-          <p>Gracias por usar nuestro sistema.</p>
-        `,
-        };
-
-        await transporter.sendMail(correo);
-
-    } else {
-        console.log('No se encontró un email asociado para esta clave.');
-    }
-    res.json({ mensaje: 'Pedido realizado y correo enviado.' });
-};
-*/
-/*
-exports.hacerPedido = async (req, res, next) => {
-    console.log(HACERPEDIDO)
-}*/
 
 exports.procesarPedidoCliente = async (req, res, next) => {
     const { clienteId, pdicdpdin, pdifecped, pdihorrec, carrito } = req.body;
@@ -634,7 +344,7 @@ exports.procesarPedidoCliente = async (req, res, next) => {
                         cxcnudocn: remision.remnufacn,
                         empcdempn: 20,
                         cxcstatuc: 'C',
-                        cxcfevend: { [Op.lte]: new Date(new Date() - 1000 * 24 * 60 * 60 * 1000) }, //CAMBIAR A 10 DIAS 
+                        cxcfevend: { [Op.lte]: new Date(new Date() - 10 * 24 * 60 * 60 * 1000) }, //CAMBIAR A 10 DIAS 
                     },
                     group: [
                         'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
@@ -661,7 +371,7 @@ exports.procesarPedidoCliente = async (req, res, next) => {
                     clicdclic: clienteId,
                     empcdempn: 20,
                     cxcstatuc: 'C',
-                    cxcfevend: { [Op.lte]: new Date(new Date() - 1000 * 24 * 60 * 60 * 1000) },
+                    cxcfevend: { [Op.lte]: new Date(new Date() - 10 * 24 * 60 * 60 * 1000) },
                 },
                 group: [
                     'empcdempn', 'clicdclic', 'cxctpdocc', 'cxcnudocn', 'cxcfolfin',
@@ -924,15 +634,112 @@ exports.detallePedido = async (req, res) => {
 
         const preciosActuales = await Preciogpo.findAll({
             where: { artcdartn: articulosIds },
-            attributes
         })
-        console.log(articulosIds);
+
         res.status(200).json(detalles);
     } catch (error) {
         console.error('Error al consultar detalles del pedido:', error);
         res.status(500).json({ message: 'Error en el servidor', error: error.message });
     }
 };
+
+exports.traerCarritoYCambiosDePrecio = async (req, res) => {
+    try {
+        const { pedidoId } = req.params;
+        const { precioGrp } = req.query;
+
+        const detallesAnteriores = await Pedido1.findAll({
+            where: {
+                pdicdpdin: pedidoId,
+                empcdempn: 20
+            },
+            include: [
+                {
+                    model: articulos,
+                    as: 'articulos',
+                    attributes: ['artcdartn', 'artdsartc', 'ivacdivan'],
+                },
+            ],
+        });
+
+        if (detallesAnteriores.length === 0) {
+            return res.status(404).json({ message: 'No se encontraron detalles para este pedido.' });
+        }
+
+        const articulosIds = detallesAnteriores.map(detalle => detalle.articulos?.artcdartn).filter(id => id);
+
+        const preciosActuales = await Preciogpo.findAll({
+            where: {
+                artcdartn: articulosIds,
+                grpcdgrpn: precioGrp
+            },
+        });
+
+        const preciosMap = {};
+
+        preciosActuales.forEach(articuloPrecio => {
+            let precioReal;
+            if (articuloPrecio.grppreofn && new Date(articuloPrecio.grpfecofd) >= new Date()) {
+                precioReal = articuloPrecio.grppreofn;
+            } else {
+                precioReal = articuloPrecio.grpprecin;
+            }
+            preciosMap[articuloPrecio.artcdartn] = precioReal;
+        });
+
+        let cambios = [];
+
+        for (let detalle of detallesAnteriores) {
+            const articulo = detalle.articulos;
+            const precioActual = preciosMap[articulo.artcdartn];
+            const precioPrevio = detalle.dataValues.pdiprevtn;
+
+            if (precioActual !== precioPrevio) {
+                const resultado = await Pedido1.update(
+                    { pdiprevtn: precioActual, pdipranon: precioActual },
+                    { where: { empcdempn: 20, pdicdpdin: pedidoId, artcdartn: articulo.artcdartn } }
+                );
+
+                if (resultado[0] === 0) {
+                    console.log('No se actualizó ningún registro.');
+                } else {
+                    console.log('Precio actualizado con éxito.');
+                }
+
+                cambios.push({
+                    articulo: articulo.artdsartc,
+                    precio_anterior: precioPrevio,
+                    nuevo_precio: precioActual,
+                    subio: precioPrevio < precioActual
+                });
+            }
+        }
+
+        const detalles = await Pedido1.findAll({
+            where: {
+                pdicdpdin: pedidoId,
+                empcdempn: 20
+            },
+            include: [
+                {
+                    model: articulos,
+                    as: 'articulos',
+                    attributes: ['artcdartn', 'artdsartc', 'ivacdivan'],
+                },
+            ],
+        });
+
+        res.status(200).json({
+            detalles,
+            cambios
+        });
+
+    } catch (error) {
+        console.error('Error al consultar detalles del pedido:', error);
+        res.status(500).json({ message: 'Error en el servidor', error: error.message });
+    }
+};
+
 
 
 

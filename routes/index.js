@@ -138,6 +138,9 @@ module.exports = function () {
     //FACTURAS 
     router.get('/facturasTotal/:claveUsuario', clienteController.totalFacturas);
 
+
+    router.get('/generarEstadoCuenta/:clicdclic', pagoController.generarEstadoDeCuenta);
+
     router.get('/facturas/obtenerRFC/:clicdclic', clienteController.obtenerRFC);
 
     router.get('/ofertas', landingPageController.obtenerOfertas);
@@ -167,6 +170,9 @@ module.exports = function () {
 
     //DETALLE PEDIDO
     router.get('/pedidos/detalle/:pedidoId', pedidoController.detallePedido);
+
+
+    router.get('/traerCarritoYCambiosDePrecio/:pedidoId', pedidoController.traerCarritoYCambiosDePrecio);
 
     router.get('/pedidosEnCaptura', pedidoController.pedidoCaptura);
 
