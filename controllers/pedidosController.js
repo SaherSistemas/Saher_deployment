@@ -13,6 +13,7 @@ const Agentes = require('../models/AGENTES/Agentes');
 const Factura = require('../models/CLIENTES/Facturas');
 const Paqueterias = require('../models/PEDIDOS/Paqueterias')
 const Preciogpo = require('../models/CLIENTES/PrecioGpo.js');
+const usuarios = require("../models/USUARIOS/Usuarios.js");
 
 
 exports.actualizarPedido = async (req, res, next) => {
@@ -476,6 +477,12 @@ exports.procesarPedidoCliente = async (req, res, next) => {
         } else {
             console.log('No se encontró un email asociado para esta clave.');
         }
+
+        await usuarios.increment('cant_pedidos', {
+            by: 1,
+            where: { clvcli: clienteId }
+        });
+
         res.json({ mensaje: 'Pedido procesado correctamente y correo enviado.' });
     } catch (error) {
         console.error("Error al procesar el pedido:", error);

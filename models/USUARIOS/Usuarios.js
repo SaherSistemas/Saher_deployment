@@ -33,6 +33,9 @@ const usuarios = sequelize.define('webusuarios', {
     },
     fechainiciosesion: {
         type: DataTypes.DATE,
+    },
+    cant_pedidos: {
+        type: DataTypes.NUMBER(10, 0)
     }
 }, {
     tableName: 'webusuarios', // Asegúrate de que coincida con el nombre de tu tabla en PostgreSQL
