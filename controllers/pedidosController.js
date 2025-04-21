@@ -1096,7 +1096,7 @@ exports.nuevoPedidoCliente = async (req, res, next) => {
             pdiusempc: '',
             pdihoempc: '',
         };
-
+        //
         const pedidoEncabezado = await Pedidos.create(nuevoPedido);
 
         const pedidos = carrito.map((item) => {
